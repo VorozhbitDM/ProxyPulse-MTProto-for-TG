@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://yoomoney.ru/to/4100119536071248">
-    <img src="docs/yoomoney-support.svg" alt="Поддержать проект на ЮMoney" width="240" height="48">
+    <img src="docs/yoomoney-support.png" alt="Поддержать проект на ЮMoney" width="280" height="56">
   </a>
 </p>
 
@@ -85,7 +85,7 @@ cd ProxyPulse-MTProto-for-TG
 
 <p align="center">
   <a href="https://yoomoney.ru/to/4100119536071248">
-    <img src="docs/yoomoney-support.svg" alt="Перевести на ЮMoney" width="240" height="48">
+    <img src="docs/yoomoney-support.png" alt="Перевести на ЮMoney" width="280" height="56">
   </a>
 </p>
 
