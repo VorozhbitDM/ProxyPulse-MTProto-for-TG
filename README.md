@@ -70,7 +70,7 @@ cd ProxyPulse-MTProto-for-TG
 .\build.ps1
 ```
 
-Готовый файл: `dist\ProxyPulse.exe`
+Готовый файл: `dist\ProxyPulse.exe` и архив `dist\ProxyPulse-v2.4-win-x64.zip` (внутри только exe).
 
 Нужен [.NET SDK](https://dotnet.microsoft.com/download) (для сборки) или MSBuild + .NET Framework 4.7.2.
 

@@ -27,10 +27,16 @@ function Get-DotNetCli {
     return $null
 }
 
+$iconScript = Join-Path $root "scripts\gen-app-icon.ps1"
+if (Test-Path $iconScript) {
+    Write-Host "Updating app.ico from docs\proxy-pulse-app-icon.png..."
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $iconScript
+}
+
 $dotnet = Get-DotNetCli
 if ($dotnet) {
     Write-Host "Building with .NET SDK: $dotnet"
-    & $dotnet build $project -c Release
+    & $dotnet build $project -c Release --no-incremental
     $candidates = @(
         (Join-Path $projectDir "bin\Release\net472\ProxyPulse.exe"),
         (Join-Path $projectDir "bin\Release\ProxyPulse.exe")
@@ -68,6 +74,26 @@ else {
     New-Item -ItemType Directory -Path $dist | Out-Null
 }
 
-Copy-Item $outExe (Join-Path $dist "ProxyPulse.exe") -Force
+$distExe = Join-Path $dist "ProxyPulse.exe"
+Copy-Item $outExe $distExe -Force
+# Touch dist so Explorer shows updated time after icon/embed changes
+(Get-Item $distExe).LastWriteTime = Get-Date
 
-Write-Host "Done: $dist\ProxyPulse.exe (single file, .NET Framework 4.7.2+ required)"
+# Release ZIP: only ProxyPulse.exe (do not zip bin\Release — there are .pdb, .config, etc.)
+$version = "2.4"
+if (Test-Path $project) {
+    [xml]$csproj = Get-Content $project
+    $verText = ($csproj.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)
+    if ($verText) {
+        $v = [version]$verText
+        $version = if ($v.Build -eq 0) { "$($v.Major).$($v.Minor)" } else { "$($v.Major).$($v.Minor).$($v.Build)" }
+    }
+}
+$zipName = "ProxyPulse-v$version-win-x64.zip"
+$zipPath = Join-Path $dist $zipName
+if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+Compress-Archive -Path $distExe -DestinationPath $zipPath -CompressionLevel Optimal
+
+Write-Host "Done: $distExe"
+Write-Host "ZIP:  $zipPath (only ProxyPulse.exe)"
+Write-Host "      Upload this file to GitHub Release Assets."
