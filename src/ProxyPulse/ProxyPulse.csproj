@@ -13,4 +13,11 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="app.ico" />
+    <None Include="app.png" />
+  </ItemGroup>
+  <Target Name="EnsureAppIcon" BeforeTargets="BeforeBuild" Condition="Exists('app.png')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\scripts\gen-app-icon.ps1&quot;" />
+  </Target>
 </Project>

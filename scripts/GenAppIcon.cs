@@ -14,7 +14,7 @@ static class GenAppIcon
         var root = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
         var sourcePath = args.Length > 0
             ? Path.GetFullPath(args[0])
-            : Path.Combine(root, "docs", "proxy-pulse-app-icon.png");
+            : Path.Combine(root, "src", "ProxyPulse", "app.png");
         var outPath = args.Length > 1
             ? Path.GetFullPath(args[1])
             : Path.Combine(root, "src", "ProxyPulse", "app.ico");
@@ -27,7 +27,7 @@ static class GenAppIcon
         {
             foreach (var size in Sizes)
             {
-                using (var bmp = RenderSquare(src, size))
+                using (var bmp = RenderCircularIcon(src, size))
                 using (var ms = new MemoryStream())
                 {
                     bmp.Save(ms, ImageFormat.Png);
@@ -41,8 +41,9 @@ static class GenAppIcon
         Console.WriteLine("Wrote:  " + outPath + " (" + new FileInfo(outPath).Length + " bytes, " + pngs.Count + " sizes)");
     }
 
-    static Bitmap RenderSquare(Image src, int size)
+    static Bitmap RenderCircularIcon(Image src, int size)
     {
+        var crop = GetCenterSquare(src);
         var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
         {
@@ -51,12 +52,55 @@ static class GenAppIcon
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.CompositingQuality = CompositingQuality.HighQuality;
             g.SmoothingMode = SmoothingMode.HighQuality;
-            g.DrawImage(src, 0, 0, size, size);
+
+            using (var clip = new GraphicsPath())
+            {
+                clip.AddEllipse(0, 0, size, size);
+                g.SetClip(clip);
+                g.DrawImage(src, new Rectangle(0, 0, size, size), crop, GraphicsUnit.Pixel);
+            }
         }
+
+        ApplyCircularAlpha(bmp);
         return bmp;
     }
 
-    // ICO with embedded PNGs (Vista+). Planes=0 per common tooling; works with CSC Win32 embed.
+    static Rectangle GetCenterSquare(Image src)
+    {
+        int s = Math.Min(src.Width, src.Height);
+        return new Rectangle((src.Width - s) / 2, (src.Height - s) / 2, s, s);
+    }
+
+    static void ApplyCircularAlpha(Bitmap bmp)
+    {
+        int w = bmp.Width;
+        int h = bmp.Height;
+        float cx = (w - 1) / 2f;
+        float cy = (h - 1) / 2f;
+        float radius = Math.Min(cx, cy);
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                float dx = x - cx;
+                float dy = y - cy;
+                float dist = (float)Math.Sqrt(dx * dx + dy * dy);
+                if (dist > radius)
+                {
+                    bmp.SetPixel(x, y, Color.Transparent);
+                }
+                else if (dist > radius - 1.2f)
+                {
+                    var c = bmp.GetPixel(x, y);
+                    float t = (radius - dist) / 1.2f;
+                    if (t < 0) t = 0;
+                    bmp.SetPixel(x, y, Color.FromArgb((int)(c.A * t), c.R, c.G, c.B));
+                }
+            }
+        }
+    }
+
     static void WritePngIco(string path, IList<PngFrame> frames)
     {
         using (var fs = File.Create(path))

@@ -29,8 +29,15 @@ function Get-DotNetCli {
 
 $iconScript = Join-Path $root "scripts\gen-app-icon.ps1"
 if (Test-Path $iconScript) {
-    Write-Host "Updating app.ico from docs\proxy-pulse-app-icon.png..."
+    Write-Host "Updating app.ico from src\ProxyPulse\app.png..."
     & powershell -NoProfile -ExecutionPolicy Bypass -File $iconScript
+}
+
+Write-Host "Clean rebuild (icon embed)..."
+$dotnet = Get-DotNetCli
+if ($dotnet) {
+    & $dotnet clean $project -c Release -v q | Out-Null
+    Remove-Item -Recurse -Force (Join-Path $projectDir "bin"), (Join-Path $projectDir "obj") -ErrorAction SilentlyContinue
 }
 
 $dotnet = Get-DotNetCli
@@ -94,6 +101,27 @@ $zipPath = Join-Path $dist $zipName
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path $distExe -DestinationPath $zipPath -CompressionLevel Optimal
 
+$hash = (Get-FileHash $distExe -Algorithm SHA256).Hash.Substring(0, 16)
 Write-Host "Done: $distExe"
+Write-Host "      SHA256: $hash...  Size: $((Get-Item $distExe).Length) bytes"
 Write-Host "ZIP:  $zipPath (only ProxyPulse.exe)"
 Write-Host "      Upload this file to GitHub Release Assets."
+
+# Preview embedded icon (for verification; Explorer may still show cached icon)
+try {
+    Add-Type -AssemblyName System.Drawing
+    $ico = [System.Drawing.Icon]::ExtractAssociatedIcon($distExe)
+    if ($ico) {
+        $preview = Join-Path $dist "icon-embedded-preview.png"
+        $ico.ToBitmap().Save($preview, [System.Drawing.Imaging.ImageFormat]::Png)
+        $ico.Dispose()
+        Write-Host "Preview: $preview (open this if Explorer shows old icon)"
+    }
+} catch { }
+
+if (Get-Command ie4uinit.exe -ErrorAction SilentlyContinue) {
+    ie4uinit.exe -show | Out-Null
+}
+Write-Host ""
+Write-Host "If dist\ProxyPulse.exe still shows the OLD icon in Explorer, run:"
+Write-Host "  .\scripts\refresh-shell-icons.ps1"

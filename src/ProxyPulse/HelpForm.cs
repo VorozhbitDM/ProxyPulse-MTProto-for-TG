@@ -20,6 +20,7 @@ namespace ProxyPulse
             ClientSize = new Size(440, 228);
             Font = new Font("Segoe UI", 9.5f);
             BackColor = Color.White;
+            AppBranding.ApplyWindowIcon(this);
 
             var accent = Color.FromArgb(42, 171, 238);
 

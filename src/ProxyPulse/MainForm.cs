@@ -58,6 +58,8 @@ namespace ProxyPulse
             Controls.Add(_welcomePanel);
             Controls.Add(_scanPanel);
             Controls.Add(_footerPanel);
+
+            AppBranding.ApplyWindowIcon(this);
         }
 
         private void BuildWelcomePanel()
