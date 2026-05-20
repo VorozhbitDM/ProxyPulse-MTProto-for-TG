@@ -8,17 +8,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases/tag/v2.4"><img src="https://img.shields.io/github/v/release/VorozhbitDM/ProxyPulse-MTProto-for-TG/v2.4?style=flat-square&label=Release" alt="Release v2.4"></a>
+  <a href="https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases/latest"><img src="https://img.shields.io/github/v/release/VorozhbitDM/ProxyPulse-MTProto-for-TG?style=flat-square&label=Release" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT"></a>
   <a href="https://dotnet.microsoft.com/download/dotnet-framework/net472"><img src="https://img.shields.io/badge/.NET%20Framework-4.7.2%2B-512BD4?style=flat-square" alt=".NET Framework"></a>
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Windows">
 </p>
 
-<p align="center">
-  <a href="https://yoomoney.ru/to/4100119536071248">
-    <img src="docs/yoomoney-support.png" alt="Поддержать проект на ЮMoney" width="280" height="56">
-  </a>
-</p>
 
 ---
 
