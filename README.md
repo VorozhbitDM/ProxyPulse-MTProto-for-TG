@@ -76,7 +76,7 @@ cd ProxyPulse-MTProto-for-TG
 
 ---
 
-## Поддержать проект
+## Поддержка и развитие проекта
 
 <p align="center">
   <a href="https://yoomoney.ru/to/4100119536071248">
@@ -84,13 +84,7 @@ cd ProxyPulse-MTProto-for-TG
   </a>
 </p>
 
-<p align="center">
-  <sub>Принимаю поддержку только на <strong>ЮMoney</strong> · <a href="https://yoomoney.ru/to/4100119536071248">yoomoney.ru/to/4100119536071248</a></sub>
-</p>
-
-Проект бесплатный и с открытым исходным кодом. Если ProxyPulse вам помог — буду благодарен любой сумме.
-
-В приложении: **Справка → ЮMoney**.
+Проект с открытым исходным кодом. Если ProxyPulse вам помог — буду благодарен любой сумме.
 
 ---
 
