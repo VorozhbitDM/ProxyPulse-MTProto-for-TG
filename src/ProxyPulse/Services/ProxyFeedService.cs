@@ -50,7 +50,8 @@ namespace ProxyPulse.Services
                 () => ArchiveCdxService.GetRecentSnapshotIds(log, cancellationToken),
                 cancellationToken);
 
-            if (!TryLoadFeedFirstPage(seen, output, errors, log, cancellationToken, cap))
+            string feedSnapshotId;
+            if (!TryLoadFeedFirstPage(seen, output, errors, log, cancellationToken, cap, out feedSnapshotId))
                 Log(log, "Лента: первая страница недоступна");
 
             ReportCdx(progress, 0, cdxCap, seen.Count, cap);
@@ -81,7 +82,8 @@ namespace ProxyPulse.Services
                     cancellationToken,
                     cdxCap,
                     cap,
-                    snapshots);
+                    snapshots,
+                    feedSnapshotId);
             }
 
             Log(log, string.Format(
@@ -97,9 +99,11 @@ namespace ProxyPulse.Services
             List<string> errors,
             Action<string> log,
             CancellationToken cancellationToken,
-            int proxyCap)
+            int proxyCap,
+            out string feedSnapshotId)
         {
-            Log(log, "Лента: первая страница…");
+            feedSnapshotId = null;
+            Log(log, "Лента: последний снимок (web/2)…");
 
             foreach (var candidate in ArchiveUrlHelper.GetFirstPageCandidates(ArchiveEntryUrl))
             {
@@ -117,8 +121,20 @@ namespace ProxyPulse.Services
                         continue;
                     }
 
+                    feedSnapshotId = ProxyLinkParser.GetArchiveSnapshotId(html);
                     var added = EmitNewProxies(ProxyLinkParser.Parse(html), seen, output, cancellationToken, proxyCap);
-                    Log(log, string.Format("Лента: +{0} новых, всего {1}/{2}", added, seen.Count, proxyCap));
+                    if (!string.IsNullOrEmpty(feedSnapshotId))
+                    {
+                        Log(log, string.Format(
+                            "Лента: снимок {0}, +{1} новых, всего {2}/{3}",
+                            feedSnapshotId,
+                            added,
+                            seen.Count,
+                            proxyCap));
+                    }
+                    else
+                        Log(log, string.Format("Лента: +{0} новых, всего {1}/{2}", added, seen.Count, proxyCap));
+
                     return true;
                 }
                 catch (Exception ex)
@@ -147,23 +163,28 @@ namespace ProxyPulse.Services
             CancellationToken cancellationToken,
             int maxSnapshots,
             int proxyCap,
-            IList<string> snapshots)
+            IList<string> snapshots,
+            string skipSnapshotId)
         {
             if (snapshots == null)
                 snapshots = new List<string>();
 
-            var batch = snapshots
-                .OrderByDescending(id => id, StringComparer.Ordinal)
+            var batch = ArchiveCdxService.FilterNewestFirst(snapshots is List<string> list ? list : snapshots.ToList())
+                .Where(id => string.IsNullOrEmpty(skipSnapshotId)
+                    || !string.Equals(id, skipSnapshotId, StringComparison.Ordinal))
                 .Take(maxSnapshots)
                 .ToList();
 
             if (batch.Count == 0)
             {
-                Log(log, "CDX: список снимков пуст");
+                Log(log, "CDX: нет дополнительных свежих снимков");
                 return 0;
             }
 
-            Log(log, string.Format("CDX: {0} снимков (новые → старые)…", batch.Count));
+            Log(log, string.Format(
+                "CDX: до {0} снимков, с {1}…",
+                batch.Count,
+                batch[0]));
             var loaded = 0;
 
             for (var i = 0; i < batch.Count; i++)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -13,11 +14,16 @@ namespace ProxyPulse.Services
         private static List<string> _cachedIds;
         private static DateTime _cachedAtUtc;
 
+        /// <summary>Брать только снимки не старше этого срока (строка timestamp CDX).</summary>
+        public const int FreshSnapshotMaxAgeDays = 120;
+
+        private const string SortNewestFirst = "&sort=reverse";
+
         private static readonly string[] CdxUrlCandidates =
         {
-            "https://web.archive.org/cdx/search/cdx?url=t.me/s/ProxyMTProto&output=text&fl=timestamp&collapse=timestamp&limit=35",
-            "https://web.archive.org/cdx/search/cdx?url=t.me/s/ProxyMTProto&output=json&fl=timestamp&filter=statuscode:200&collapse=digest&limit=35",
-            "https://web.archive.org/cdx/search/cdx?url=https://t.me/s/ProxyMTProto&output=json&fl=timestamp&filter=statuscode:200&collapse=digest&limit=35"
+            "https://web.archive.org/cdx/search/cdx?url=t.me/s/ProxyMTProto&output=text&fl=timestamp&collapse=timestamp&limit=40" + SortNewestFirst,
+            "https://web.archive.org/cdx/search/cdx?url=t.me/s/ProxyMTProto&output=json&fl=timestamp&filter=statuscode:200&collapse=digest&limit=40" + SortNewestFirst,
+            "https://web.archive.org/cdx/search/cdx?url=https://t.me/s/ProxyMTProto&output=json&fl=timestamp&filter=statuscode:200&collapse=digest&limit=40" + SortNewestFirst
         };
 
         private static readonly Regex TimestampJsonRegex = new Regex(
@@ -70,8 +76,17 @@ namespace ProxyPulse.Services
                             _cachedAtUtc = DateTime.UtcNow;
                         }
 
+                        ids = FilterNewestFirst(ids);
+
                         if (log != null)
-                            log(string.Format("CDX: найдено {0} снимков", ids.Count));
+                        {
+                            var newest = ids.Count > 0 ? ids[0] : "—";
+                            log(string.Format(
+                                "CDX: {0} снимков (сначала самые новые, от {1})",
+                                ids.Count,
+                                FormatSnapshotDate(newest)));
+                        }
+
                         return ids;
                     }
 
@@ -88,7 +103,48 @@ namespace ProxyPulse.Services
             if (log != null && ids.Count == 0)
                 log(string.Format("CDX: список не получен ({0})", lastError ?? "нет данных"));
 
-            return ids;
+            return FilterNewestFirst(ids);
+        }
+
+        /// <summary>Новые → старые; отсекаем снимки старше <see cref="FreshSnapshotMaxAgeDays"/>.</summary>
+        public static List<string> FilterNewestFirst(IList<string> ids)
+        {
+            if (ids == null || ids.Count == 0)
+                return new List<string>();
+
+            var cutoff = GetFreshnessCutoffTimestamp();
+            var sorted = ids
+                .Where(id => !string.IsNullOrEmpty(id) && id.Length == 14)
+                .Where(id => string.Compare(id, cutoff, StringComparison.Ordinal) >= 0)
+                .Distinct(StringComparer.Ordinal)
+                .OrderByDescending(id => id, StringComparer.Ordinal)
+                .ToList();
+
+            return sorted;
+        }
+
+        public static string GetFreshnessCutoffTimestamp()
+        {
+            return DateTime.UtcNow
+                .AddDays(-FreshSnapshotMaxAgeDays)
+                .ToString("yyyyMMddHHmmss");
+        }
+
+        private static string FormatSnapshotDate(string timestampId)
+        {
+            if (string.IsNullOrEmpty(timestampId) || timestampId.Length != 14)
+                return timestampId ?? "—";
+
+            DateTime dt;
+            if (DateTime.TryParseExact(
+                    timestampId,
+                    "yyyyMMddHHmmss",
+                    null,
+                    System.Globalization.DateTimeStyles.AssumeUniversal,
+                    out dt))
+                return dt.ToString("dd.MM.yyyy HH:mm") + " UTC";
+
+            return timestampId;
         }
 
         private static void ParseTimestamps(string body, bool isText, List<string> ids)
