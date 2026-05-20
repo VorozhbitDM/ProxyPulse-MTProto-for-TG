@@ -1,10 +1,18 @@
-# ProxyPulse
+<p align="center">
+  <img alt="ProxyPulse — MTProto-прокси для Telegram" src="docs/banner.png" width="900">
+</p>
 
-**Поиск MTProto-прокси и проверка доступности** — одним кликом подключение в Telegram. Без VPN, без API-ключей и без ручной настройки.
+<p align="center">
+  <strong>Поиск MTProto-прокси и проверка доступности</strong><br>
+  Подключение в Telegram одним кликом · Windows · без VPN и API-ключей
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.7.2%2B-512BD4)](https://dotnet.microsoft.com/download/dotnet-framework)
-[![Windows](https://img.shields.io/badge/Platform-Windows-0078D6)](https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG)
+<p align="center">
+  <a href="https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases"><img src="https://img.shields.io/github/v/release/VorozhbitDM/ProxyPulse-MTProto-for-TG?style=flat-square&label=Release" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT"></a>
+  <a href="https://dotnet.microsoft.com/download/dotnet-framework/net472"><img src="https://img.shields.io/badge/.NET%20Framework-4.7.2%2B-512BD4?style=flat-square" alt=".NET Framework"></a>
+  <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Windows">
+</p>
 
 ---
 
@@ -23,13 +31,16 @@ Telegram иногда недоступен напрямую. В каналах �
 
 ## Скриншоты
 
-**Стартовый экран**
+<details>
+<summary><strong>Стартовый экран и результаты</strong></summary>
 
-![Стартовый экран ProxyPulse](docs/screenshot-welcome.jpg)
+<br>
 
-**Результаты поиска** — список доступных прокси с пингом и цветовой индикацией
+| Стартовый экран | Результаты поиска |
+|:---:|:---:|
+| ![Стартовый экран](docs/screenshot-welcome.jpg) | ![Результаты](docs/screenshot-results.jpg) |
 
-![Результаты проверки прокси](docs/screenshot-results.jpg)
+</details>
 
 ---
 
@@ -66,11 +77,13 @@ cd ProxyPulse-MTProto-for-TG
 
 ## Поддержать проект
 
-Проект бесплатный и с открытым исходным кодом. Если он вам помог — можно поддержать разработку любым удобным способом:
+Проект бесплатный и с открытым исходным кодом. Если он вам помог — можно поддержать разработку:
 
-| Способ | Ссылка | Комментарий |
-|--------|--------|-------------|
-| **Boosty** | *добавьте ссылку* | Удобно для аудитории из СНГ, рубли |
+| Способ | Ссылка |
+|--------|--------|
+| **Boosty** | *добавьте ссылку* |
+
+В приложении: **Справка → Задонатить**.
 
 ---
 
@@ -80,6 +93,7 @@ cd ProxyPulse-MTProto-for-TG
 
 ---
 
-## Автор
-
-[Denis Vorozhbit](https://github.com/VorozhbitDM) · репозиторий: [ProxyPulse-MTProto-for-TG](https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG)
+<p align="center">
+  <a href="https://github.com/VorozhbitDM">Denis Vorozhbit</a> ·
+  <a href="https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG">ProxyPulse-MTProto-for-TG</a>
+</p>
