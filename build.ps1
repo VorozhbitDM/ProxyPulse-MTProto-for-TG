@@ -87,7 +87,7 @@ Copy-Item $outExe $distExe -Force
 (Get-Item $distExe).LastWriteTime = Get-Date
 
 # Release ZIP: only ProxyPulse.exe (do not zip bin\Release — there are .pdb, .config, etc.)
-$version = "2.6"
+$version = "2.7"
 if (Test-Path $project) {
     [xml]$csproj = Get-Content $project
     $verText = ($csproj.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ } | Select-Object -First 1)

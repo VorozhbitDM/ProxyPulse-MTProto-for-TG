@@ -27,7 +27,7 @@ namespace ProxyPulse
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             var versionText = version != null
                 ? string.Format("{0}.{1}", version.Major, version.Minor)
-                : "2.6";
+                : "2.7";
 
             var title = new Label
             {

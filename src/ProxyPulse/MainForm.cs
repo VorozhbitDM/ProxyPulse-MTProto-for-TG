@@ -53,7 +53,7 @@ namespace ProxyPulse
         private static string GetAppVersionLabel()
         {
             var v = Assembly.GetExecutingAssembly().GetName().Version;
-            return v != null ? string.Format("{0}.{1}", v.Major, v.Minor) : "2.6";
+            return v != null ? string.Format("{0}.{1}", v.Major, v.Minor) : "2.7";
         }
 
         private void InitializeComponent()
@@ -344,9 +344,10 @@ namespace ProxyPulse
             EnableDoubleBuffer(_cardsFlow);
 
             _cardsHost.Controls.Add(_cardsFlow);
-            _cardsHost.Resize += (_, __) => _cardsFlow.Width = Math.Max(200, _cardsHost.ClientSize.Width - 8);
+            _cardsHost.Resize += (_, __) => LayoutProxyCardsWidth();
 
             _scanPanel.Controls.Add(_cardsHost);
+            _scanPanel.Resize += (_, __) => LayoutProxyCardsWidth();
             _scanPanel.Controls.Add(header);
         }
 
@@ -739,10 +740,27 @@ namespace ProxyPulse
                 ReorderCard(entry.Key);
         }
 
+        private int GetProxyCardWidth()
+        {
+            if (_cardsHost == null)
+                return 460;
+            return Math.Max(200, _cardsHost.ClientSize.Width - 12);
+        }
+
+        private void LayoutProxyCardsWidth()
+        {
+            if (_cardsFlow == null || _cardsHost == null)
+                return;
+
+            _cardsFlow.Width = Math.Max(200, _cardsHost.ClientSize.Width - 8);
+            var cardWidth = GetProxyCardWidth();
+            foreach (Control c in _cardsFlow.Controls)
+                c.Width = cardWidth;
+        }
+
         private void AddCardAt(ProxyEntry entry, int index)
         {
-            var cardWidth = Math.Max(200, _cardsHost.ClientSize.Width - 12);
-            var card = new ProxyCardControl { Width = cardWidth };
+            var card = new ProxyCardControl { Width = GetProxyCardWidth() };
             card.Bind(entry);
             card.ConnectClick += Card_ConnectClick;
             card.RecheckClick += Card_RecheckClick;
@@ -771,7 +789,8 @@ namespace ProxyPulse
             _cardsFlow.Controls.Clear();
             _cardsByKey.Clear();
 
-            var cardWidth = Math.Max(200, _cardsHost.ClientSize.Width - 12);
+            LayoutProxyCardsWidth();
+            var cardWidth = GetProxyCardWidth();
             foreach (var key in _sortedKeys)
             {
                 var entry = _availableByKey[key];

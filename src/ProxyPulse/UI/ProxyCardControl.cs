@@ -16,6 +16,7 @@ namespace ProxyPulse.UI
         private static readonly Color PingBad = Color.FromArgb(231, 76, 60);
 
         private readonly Panel _accentStrip;
+        private readonly Panel _body;
         private readonly Label _addressLabel;
         private readonly Label _pingLabel;
         private readonly Button _btnRecheck;
@@ -52,7 +53,7 @@ namespace ProxyPulse.UI
                 BackColor = StripUnknown
             };
 
-            var body = new Panel
+            _body = new Panel
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(10, 6, 8, 6),
@@ -66,7 +67,7 @@ namespace ProxyPulse.UI
                 ForeColor = Color.FromArgb(33, 33, 33),
                 Location = new Point(0, 2),
                 Height = 18,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                AutoEllipsis = true
             };
 
             _pingLabel = new Label
@@ -93,24 +94,25 @@ namespace ProxyPulse.UI
             _btnRecheck.Click += OnRecheckClick;
             _toolTip.SetToolTip(_btnRecheck, "Повторно проверить доступность");
 
-            body.Controls.Add(_addressLabel);
-            body.Controls.Add(_pingLabel);
-            body.Controls.Add(_btnRecheck);
+            _body.Controls.Add(_addressLabel);
+            _body.Controls.Add(_pingLabel);
+            _body.Controls.Add(_btnRecheck);
 
-            Controls.Add(body);
+            Controls.Add(_body);
             Controls.Add(_accentStrip);
 
             WireHover(this);
-            WireHover(body);
+            WireHover(_body);
             WireHover(_addressLabel);
             WireHover(_pingLabel);
 
             WireConnectArea(this);
-            WireConnectArea(body);
+            WireConnectArea(_body);
             WireConnectArea(_addressLabel);
             WireConnectArea(_pingLabel);
 
             Resize += (_, __) => LayoutBody();
+            _body.Resize += (_, __) => LayoutBody();
         }
 
         private void WireConnectArea(Control c)
@@ -195,9 +197,18 @@ namespace ProxyPulse.UI
 
         private void LayoutBody()
         {
-            var w = Width > 0 ? Width - 16 : 380;
-            _addressLabel.Width = Math.Max(120, w - 88);
-            _btnRecheck.Location = new Point(Math.Max(0, w - 76), 6);
+            if (_body == null)
+                return;
+
+            var innerW = _body.ClientSize.Width - _body.Padding.Horizontal;
+            if (innerW <= 0)
+                return;
+
+            const int btnW = 76;
+            const int gap = 8;
+            _btnRecheck.Size = new Size(btnW, 26);
+            _btnRecheck.Location = new Point(Math.Max(0, innerW - btnW), 6);
+            _addressLabel.Width = Math.Max(80, innerW - btnW - gap);
         }
 
         private static Color Blend(Color baseColor, Color overlay, int overlayAlpha)
