@@ -14,6 +14,12 @@
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Windows">
 </p>
 
+<p align="center">
+  <a href="https://yoomoney.ru/to/4100119536071248">
+    <img src="docs/yoomoney-support.svg" alt="Поддержать проект на ЮMoney" width="240" height="48">
+  </a>
+</p>
+
 ---
 
 ## Возможности
@@ -77,7 +83,17 @@ cd ProxyPulse-MTProto-for-TG
 
 ## Поддержать проект
 
-Проект бесплатный и с открытым исходным кодом. Если он вам помог — можно перевести любую сумму на **[ЮMoney](https://yoomoney.ru/to/4100119536071248)**.
+<p align="center">
+  <a href="https://yoomoney.ru/to/4100119536071248">
+    <img src="docs/yoomoney-support.svg" alt="Перевести на ЮMoney" width="240" height="48">
+  </a>
+</p>
+
+<p align="center">
+  <sub>Принимаю поддержку только на <strong>ЮMoney</strong> · <a href="https://yoomoney.ru/to/4100119536071248">yoomoney.ru/to/4100119536071248</a></sub>
+</p>
+
+Проект бесплатный и с открытым исходным кодом. Если ProxyPulse вам помог — буду благодарен любой сумме.
 
 В приложении: **Справка → ЮMoney**.
 

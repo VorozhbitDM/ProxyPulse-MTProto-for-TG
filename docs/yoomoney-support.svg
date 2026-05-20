@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="48" viewBox="0 0 240 48" role="img" aria-label=">445@60BL =0 .Money">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9b5cff"/>
+      <stop offset="100%" style="stop-color:#7b3ff2"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="48" rx="10" fill="url(#g)"/>
+  <circle cx="28" cy="24" r="14" fill="#ffffff" opacity="0.95"/>
+  <text x="28" y="29" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#7b3ff2">½</text>
+  <text x="132" y="21" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#ffffff">>445@60BL</text>
+  <text x="132" y="36" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" fill="#efe6ff">.Money</text>
+</svg>
