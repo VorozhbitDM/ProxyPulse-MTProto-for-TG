@@ -30,10 +30,10 @@ Telegram иногда недоступен напрямую. В каналах �
 
 ---
 
-## Скриншоты
+
 
 <details>
-<summary><strong>Стартовый экран и результаты</strong></summary>
+<summary><strong>Скриншоты</strong></summary>
 
 <br>
 
@@ -80,7 +80,7 @@ cd ProxyPulse-MTProto-for-TG
 
 <p align="center">
   <a href="https://yoomoney.ru/to/4100119536071248">
-    <img src="docs/yoomoney-support.png" alt="Перевести на ЮMoney" width="280" height="56">
+    <img src="docs/yoomoney-support.png" alt="Перевести на ЮMoney" width="140" height="36">
   </a>
 </p>
 
