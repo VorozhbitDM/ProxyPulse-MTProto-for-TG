@@ -39,7 +39,7 @@ Telegram иногда недоступен напрямую. В каналах �
 
 | Стартовый экран | Результаты поиска |
 |:---:|:---:|
-| ![Стартовый экран](docs/screenshot-welcome.jpg) | ![Результаты](docs/screenshot-results.jpg) |
+| ![Стартовый экран](docs/Main.jpg) | ![Результаты поиска](docs/work.jpg) |
 
 </details>
 
@@ -47,8 +47,8 @@ Telegram иногда недоступен напрямую. В каналах �
 
 ## Быстрый старт
 
-1. Скачайте **`ProxyPulse-v2.6-win-x64.zip`** в [последнем релизе](https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases/latest) (раздел *Assets*).
-2. Распакуйте архив и запустите **`ProxyPulse.exe`** (один файл, без dll).
+1. Скачайте [ProxyPulse-v2.6-win-x64.zip](https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases/latest).
+2. Распакуйте архив и запустите **`ProxyPulse.exe`**.
 3. Нажмите **«Начать поиск»**.
 4. Кликните по прокси в списке — Telegram предложит подключение.
 
