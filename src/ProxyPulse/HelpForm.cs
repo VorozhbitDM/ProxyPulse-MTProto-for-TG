@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
 using System.Windows.Forms;
+using ProxyPulse.UI;
 
 namespace ProxyPulse
 {
@@ -10,94 +11,107 @@ namespace ProxyPulse
     {
         private const string Tagline = "Ищем MTProto-прокси и проверяем доступность";
 
+        private readonly Label _title;
+        private readonly Label _ver;
+        private readonly Label _desc;
+        private readonly Button _btnGit;
+        private readonly Button _btnYooMoney;
+        private readonly Button _close;
+
         public HelpForm()
         {
+            AppFonts.EnsureInitialized();
+            AppTheme.ApplyFromSettings();
+
             Text = "Справка";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(440, 228);
-            Font = new Font("Segoe UI", 9.5f);
-            BackColor = Color.White;
+            Font = AppFonts.Ui;
             AppBranding.ApplyWindowIcon(this);
-
-            var accent = Color.FromArgb(42, 171, 238);
 
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             var versionText = version != null
                 ? string.Format("{0}.{1}", version.Major, version.Minor)
-                : "2.7";
+                : "2.8";
 
-            var title = new Label
+            _title = new Label
             {
                 Text = "ProxyPulse",
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = accent,
+                Font = AppFonts.DialogHeading,
                 AutoSize = true,
                 Location = new Point(24, 20)
             };
 
-            var ver = new Label
+            _ver = new Label
             {
                 Text = string.Format("Версия {0}", versionText),
                 AutoSize = true,
-                Location = new Point(24, 48),
-                ForeColor = Color.Gray
+                Location = new Point(24, 48)
             };
 
-            var desc = new Label
+            _desc = new Label
             {
                 Text = Tagline + ".",
                 Location = new Point(24, 76),
-                Size = new Size(392, 22),
-                ForeColor = Color.FromArgb(80, 80, 80)
+                Size = new Size(392, 22)
             };
 
-            var btnGit = new Button
+            _btnGit = new Button
             {
                 Text = "Проект на GitHub",
                 Location = new Point(24, 112),
                 Size = new Size(188, 36),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = accent,
-                ForeColor = Color.White,
                 Cursor = Cursors.Hand
             };
-            btnGit.FlatAppearance.BorderSize = 0;
-            btnGit.Click += (_, __) => OpenUrl(AppLinks.GitHubProject);
+            _btnGit.FlatAppearance.BorderSize = 0;
+            _btnGit.Click += (_, __) => OpenUrl(AppLinks.GitHubProject);
 
-            var btnYooMoney = new Button
+            _btnYooMoney = new Button
             {
                 Text = "ЮMoney",
                 Location = new Point(224, 112),
                 Size = new Size(188, 36),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(240, 244, 248),
-                ForeColor = Color.FromArgb(50, 50, 50),
                 Cursor = Cursors.Hand
             };
-            btnYooMoney.FlatAppearance.BorderColor = Color.FromArgb(210, 216, 224);
-            btnYooMoney.Click += (_, __) => OpenUrl(AppLinks.YooMoney);
+            _btnYooMoney.Click += (_, __) => OpenUrl(AppLinks.YooMoney);
 
-            var close = new Button
+            _close = new Button
             {
                 Text = "Закрыть",
                 DialogResult = DialogResult.OK,
                 Location = new Point(312, 176),
                 Size = new Size(100, 32),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(240, 244, 248)
+                FlatStyle = FlatStyle.Flat
             };
-            close.FlatAppearance.BorderColor = Color.FromArgb(220, 224, 230);
 
-            Controls.Add(title);
-            Controls.Add(ver);
-            Controls.Add(desc);
-            Controls.Add(btnGit);
-            Controls.Add(btnYooMoney);
-            Controls.Add(close);
-            AcceptButton = close;
+            Controls.Add(_title);
+            Controls.Add(_ver);
+            Controls.Add(_desc);
+            Controls.Add(_btnGit);
+            Controls.Add(_btnYooMoney);
+            Controls.Add(_close);
+            AcceptButton = _close;
+
+            ApplyTheme();
+            WindowCaptionTheme.Apply(this, AppSettings.Current.UseDarkTheme);
+        }
+
+        private void ApplyTheme()
+        {
+            var t = AppTheme.Current;
+            BackColor = t.BgSurface;
+            _title.ForeColor = t.Accent;
+            _ver.ForeColor = t.TextMuted;
+            _desc.ForeColor = t.TextSecondary;
+            AppTheme.StyleAccentButton(_btnGit);
+            AppTheme.StyleDialogSecondaryButton(_btnYooMoney);
+            AppTheme.StyleDialogSecondaryButton(_close);
+            WindowCaptionTheme.Apply(this, AppSettings.Current.UseDarkTheme);
         }
 
         private static void OpenUrl(string url)

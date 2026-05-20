@@ -15,9 +15,6 @@ namespace ProxyPulse
     {
         private static readonly string AppVersion = GetAppVersionLabel();
         private const string WelcomeTagline = "Ищем MTProto-прокси и проверяем доступность";
-        private static readonly Color Accent = Color.FromArgb(42, 171, 238);
-        private static readonly Color BgApp = Color.FromArgb(240, 243, 247);
-
         private readonly ProxyHealthService _healthService = new ProxyHealthService();
         private readonly AppSettings _settings = AppSettings.Current;
 
@@ -30,8 +27,19 @@ namespace ProxyPulse
         private Button _btnStart;
         private Button _btnCancel;
         private Button _btnNewSearch;
+        private Panel _topToolbar;
         private Panel _footerPanel;
-        private Panel _cardsHost;
+        private ToolTip _appToolTip;
+        private Label _toolbarTitle;
+        private Button _btnClose;
+        private Button _btnMinimize;
+        private Button _btnToolbarSettings;
+        private Button _btnToolbarHelp;
+        private Panel _welcomeCard;
+        private Label _welcomeTitleLabel;
+        private Label _welcomeDescLabel;
+        private Label _welcomeVerLabel;
+        private ThemedScrollPanel _cardsHost;
         private FlowLayoutPanel _cardsFlow;
         private readonly Dictionary<string, ProxyCardControl> _cardsByKey = new Dictionary<string, ProxyCardControl>();
 
@@ -53,18 +61,22 @@ namespace ProxyPulse
         private static string GetAppVersionLabel()
         {
             var v = Assembly.GetExecutingAssembly().GetName().Version;
-            return v != null ? string.Format("{0}.{1}", v.Major, v.Minor) : "2.7";
+            return v != null ? string.Format("{0}.{1}", v.Major, v.Minor) : "2.8";
         }
 
         private void InitializeComponent()
         {
+            AppFonts.EnsureInitialized();
+            AppTheme.ApplyFromSettings();
             Text = string.Format("ProxyPulse {0}", AppVersion);
             MinimumSize = new Size(480, 560);
             Size = new Size(520, 680);
             StartPosition = FormStartPosition.CenterScreen;
-            Font = new Font("Segoe UI", 9.5f);
-            BackColor = BgApp;
+            FormBorderStyle = FormBorderStyle.None;
+            Padding = new Padding(1);
+            Font = AppFonts.Ui;
 
+            BuildTopToolbar();
             BuildWelcomePanel();
             BuildScanPanel();
             BuildFooter();
@@ -73,53 +85,59 @@ namespace ProxyPulse
             Controls.Add(_welcomePanel);
             Controls.Add(_scanPanel);
             Controls.Add(_footerPanel);
+            Controls.Add(_topToolbar);
+
+            ApplyTheme();
 
             AppBranding.ApplyWindowIcon(this);
+            FormClosed += (_, __) =>
+            {
+                if (_appToolTip != null)
+                    _appToolTip.Dispose();
+            };
         }
 
         private void BuildWelcomePanel()
         {
-            _welcomePanel = new Panel { Dock = DockStyle.Fill, BackColor = BgApp };
+            _welcomePanel = new Panel { Dock = DockStyle.Fill };
 
             const int cardWidth = 448;
             const int padH = 36;
             const int contentW = cardWidth - padH * 2;
 
-            var card = new Panel
+            _welcomeCard = new Panel
             {
                 Width = cardWidth,
-                BackColor = Color.White,
                 Anchor = AnchorStyles.None
             };
-            card.Paint += (s, e) =>
+            _welcomeCard.Paint += (_, e) =>
             {
+                var theme = AppTheme.Current;
                 var g = e.Graphics;
-                var r = card.ClientRectangle;
+                var r = _welcomeCard.ClientRectangle;
                 r.Width--;
                 r.Height--;
-                using (var pen = new Pen(Color.FromArgb(220, 226, 234)))
+                using (var pen = new Pen(theme.Border))
                     g.DrawRectangle(pen, r);
-                using (var accent = new SolidBrush(Accent))
-                    g.FillRectangle(accent, 0, 0, card.Width, 4);
+                using (var accent = new SolidBrush(theme.Accent))
+                    g.FillRectangle(accent, 0, 0, _welcomeCard.Width, 4);
             };
 
-            var title = new Label
+            _welcomeTitleLabel = new Label
             {
                 Text = "ProxyPulse",
-                Font = new Font("Segoe UI", 30, FontStyle.Bold),
-                ForeColor = Accent,
+                Font = AppFonts.WelcomeTitle,
                 TextAlign = ContentAlignment.MiddleCenter,
                 AutoSize = false,
                 Size = new Size(contentW, 52)
             };
 
-            var desc = new Label
+            _welcomeDescLabel = new Label
             {
                 Text = WelcomeTagline,
                 AutoSize = false,
                 Size = new Size(contentW, 26),
-                ForeColor = Color.FromArgb(95, 100, 108),
-                Font = new Font("Segoe UI", 10.25f),
+                Font = AppFonts.WelcomeBody,
                 TextAlign = ContentAlignment.MiddleCenter
             };
 
@@ -127,53 +145,50 @@ namespace ProxyPulse
             {
                 Text = "Начать поиск",
                 Size = new Size(contentW, 46),
-                BackColor = Accent,
-                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11.5f, FontStyle.Bold),
+                Font = AppFonts.WelcomeAction,
                 Cursor = Cursors.Hand
             };
             _btnStart.FlatAppearance.BorderSize = 0;
             _btnStart.Click += async (_, __) => await StartSearchAsync();
 
-            var ver = new Label
+            _welcomeVerLabel = new Label
             {
                 Text = string.Format("v{0}", AppVersion),
-                ForeColor = Color.FromArgb(170, 175, 182),
                 AutoSize = false,
                 Size = new Size(contentW, 18),
-                Font = new Font("Segoe UI", 8.5f),
+                Font = AppFonts.UiSmall,
                 TextAlign = ContentAlignment.MiddleCenter
             };
 
             const int topPad = 32;
             var y = topPad;
-            title.Location = new Point(padH, y);
-            card.Controls.Add(title);
-            y += title.Height + 12;
+            _welcomeTitleLabel.Location = new Point(padH, y);
+            _welcomeCard.Controls.Add(_welcomeTitleLabel);
+            y += _welcomeTitleLabel.Height + 12;
 
-            desc.Location = new Point(padH, y);
-            card.Controls.Add(desc);
-            y += desc.Height + 22;
+            _welcomeDescLabel.Location = new Point(padH, y);
+            _welcomeCard.Controls.Add(_welcomeDescLabel);
+            y += _welcomeDescLabel.Height + 22;
 
             _btnStart.Location = new Point(padH, y);
-            card.Controls.Add(_btnStart);
+            _welcomeCard.Controls.Add(_btnStart);
             y += _btnStart.Height + 14;
 
-            ver.Location = new Point(padH, y);
-            card.Controls.Add(ver);
-            y += ver.Height + 28;
+            _welcomeVerLabel.Location = new Point(padH, y);
+            _welcomeCard.Controls.Add(_welcomeVerLabel);
+            y += _welcomeVerLabel.Height + 28;
 
-            card.Height = y;
+            _welcomeCard.Height = y;
 
             void CenterCard()
             {
-                card.Left = Math.Max(16, (_welcomePanel.Width - card.Width) / 2);
-                card.Top = Math.Max(24, (_welcomePanel.Height - card.Height) / 2);
+                _welcomeCard.Left = Math.Max(16, (_welcomePanel.Width - _welcomeCard.Width) / 2);
+                _welcomeCard.Top = Math.Max(24, (_welcomePanel.Height - _welcomeCard.Height) / 2);
             }
 
             _welcomePanel.Resize += (_, __) => CenterCard();
-            _welcomePanel.Controls.Add(card);
+            _welcomePanel.Controls.Add(_welcomeCard);
             CenterCard();
         }
 
@@ -185,21 +200,143 @@ namespace ProxyPulse
                     return;
 
                 _settings.MaxProxiesToCollect = dlg.MaxProxiesToCollect;
+                _settings.UseDarkTheme = dlg.UseDarkTheme;
                 _settings.Save();
+                ApplyTheme();
             }
         }
 
-        private void BuildFooter()
+        protected override void OnPaintBackground(PaintEventArgs e)
         {
-            _footerPanel = new Panel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 32,
-                BackColor = BgApp,
-                Padding = new Padding(16, 0, 12, 6)
-            };
+            base.OnPaintBackground(e);
+            var t = AppTheme.Current;
+            var w = ClientSize.Width;
+            if (w <= 0)
+                return;
 
-            var links = new FlowLayoutPanel
+            using (var brush = new SolidBrush(t.WindowBorder))
+                e.Graphics.FillRectangle(brush, 0, 0, w, 1);
+        }
+
+        private void ApplyTheme()
+        {
+            AppTheme.ApplyFromSettings();
+            var t = AppTheme.Current;
+
+            BackColor = t.WindowBorder;
+            Invalidate(true);
+            _welcomePanel.BackColor = t.BgApp;
+            _scanPanel.BackColor = t.BgApp;
+            _cardsHost.ApplyTheme(AppSettings.Current.UseDarkTheme);
+            _cardsFlow.BackColor = t.BgApp;
+            _footerPanel.BackColor = t.BgApp;
+            _statusLabel.ForeColor = t.TextMuted;
+            _topToolbar.BackColor = t.BgSurface;
+            _topToolbar.Invalidate();
+            _toolbarTitle.ForeColor = t.Accent;
+
+            if (_welcomeCard != null)
+            {
+                _welcomeCard.BackColor = t.BgCard;
+                _welcomeCard.Invalidate();
+            }
+
+            _welcomeTitleLabel.ForeColor = t.Accent;
+            _welcomeDescLabel.ForeColor = t.WelcomeDesc;
+            _welcomeVerLabel.ForeColor = t.WelcomeVersion;
+            _btnStart.UseVisualStyleBackColor = false;
+            _btnStart.FlatStyle = FlatStyle.Flat;
+            _btnStart.FlatAppearance.BorderSize = 0;
+            _btnStart.BackColor = t.Accent;
+            _btnStart.ForeColor = t.AccentButtonFore;
+
+            _progressLabel.ForeColor = t.TextSecondary;
+            _foundCountLabel.ForeColor = t.TextSecondary;
+
+            StyleToolbarLinkButton(_btnToolbarSettings);
+            StyleToolbarLinkButton(_btnToolbarHelp);
+            StyleSecondaryButton(_btnCancel);
+            StyleSecondaryButton(_btnNewSearch);
+            StyleChromeButton(_btnMinimize);
+            StyleCloseButton(_btnClose);
+
+            foreach (var card in _cardsByKey.Values)
+                card.ApplyTheme();
+
+            WindowCaptionTheme.ApplyMainWindow(this, AppSettings.Current.UseDarkTheme);
+        }
+
+        private static void StyleSecondaryButton(Button b)
+        {
+            if (b == null)
+                return;
+
+            AppTheme.StyleSecondaryButton(b);
+            if (b.Enabled)
+                return;
+
+            AppTheme.StyleDisabledButton(b);
+        }
+
+        private static void StyleToolbarLinkButton(Button b)
+        {
+            if (b == null)
+                return;
+
+            AppTheme.StyleToolbarLinkButton(b);
+            var t = AppTheme.Current;
+            if (!b.Enabled)
+            {
+                AppTheme.StyleDisabledButton(b);
+                return;
+            }
+
+            b.ForeColor = t.TextMuted;
+        }
+
+        private static void StyleChromeButton(Button b)
+        {
+            if (b == null)
+                return;
+
+            var t = AppTheme.Current;
+            b.UseVisualStyleBackColor = false;
+            b.BackColor = t.BtnSurface;
+            b.ForeColor = t.ChromeButtonFore;
+            b.FlatAppearance.BorderColor = t.BtnBorder;
+            b.Tag = "chrome";
+        }
+
+        private static void StyleCloseButton(Button b)
+        {
+            if (b == null)
+                return;
+
+            var t = AppTheme.Current;
+            b.UseVisualStyleBackColor = false;
+            b.BackColor = t.CloseButtonBg;
+            b.ForeColor = t.CloseButtonFore;
+            b.FlatAppearance.BorderColor = t.CloseButtonFore;
+            b.Tag = "close";
+        }
+
+        private void BuildTopToolbar()
+        {
+            _topToolbar = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 52,
+                Padding = new Padding(14, 10, 12, 12)
+            };
+            _topToolbar.Paint += (_, e) =>
+            {
+                var bottom = _topToolbar.ClientRectangle.Bottom - 1;
+                using (var pen = new Pen(AppTheme.Current.Border))
+                    e.Graphics.DrawLine(pen, 0, bottom, _topToolbar.ClientRectangle.Right, bottom);
+            };
+            WindowChrome.WireDrag(_topToolbar, this);
+
+            var actions = new FlowLayoutPanel
             {
                 Dock = DockStyle.Right,
                 AutoSize = true,
@@ -207,27 +344,164 @@ namespace ProxyPulse
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
                 BackColor = Color.Transparent,
-                Margin = new Padding(0)
+                Margin = new Padding(0),
+                Padding = new Padding(0, 0, 0, 1)
             };
-            links.Controls.Add(CreateLinkButton("Настройки", (_, __) => ShowSettings()));
-            links.Controls.Add(CreateLinkButton("Справка", (_, __) => new HelpForm().ShowDialog(this)));
+
+            _btnToolbarSettings = CreateToolbarLinkButton("Настройки", (_, __) => ShowSettings());
+            _btnToolbarHelp = CreateToolbarLinkButton("Справка", (_, __) => new HelpForm().ShowDialog(this));
+            _btnMinimize = CreateChromeButton("—", (_, __) => WindowState = FormWindowState.Minimized);
+            _btnClose = CreateCloseButton((_, __) => Close());
+            actions.Controls.Add(_btnToolbarSettings);
+            actions.Controls.Add(_btnToolbarHelp);
+            actions.Controls.Add(_btnMinimize);
+            actions.Controls.Add(_btnClose);
+
+            _toolbarTitle = new Label
+            {
+                Text = string.Format("ProxyPulse {0}", AppVersion),
+                Dock = DockStyle.Fill,
+                Font = AppFonts.TitleBar,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            WindowChrome.WireDrag(_toolbarTitle, this);
+
+            _appToolTip = new ToolTip { AutoPopDelay = 8000, InitialDelay = 400, ReshowDelay = 200 };
+            _appToolTip.SetToolTip(_btnToolbarSettings, "Лимит прокси и параметры поиска");
+            _appToolTip.SetToolTip(_btnToolbarHelp, "Как пользоваться ProxyPulse");
+            _appToolTip.SetToolTip(_btnMinimize, "Свернуть");
+            _appToolTip.SetToolTip(_btnClose, "Закрыть");
+
+            _topToolbar.Controls.Add(actions);
+            _topToolbar.Controls.Add(_toolbarTitle);
+        }
+
+        private static Button CreateToolbarLinkButton(string text, EventHandler onClick)
+        {
+            var b = new Button
+            {
+                Text = text,
+                AutoSize = true,
+                Height = 26,
+                MinimumSize = new Size(0, 26),
+                Padding = new Padding(6, 0, 6, 0),
+                Margin = new Padding(0, 0, 2, 0),
+                Font = AppFonts.ToolbarLink,
+                Cursor = Cursors.Hand,
+                TabStop = true,
+                Tag = "toolbar-link"
+            };
+            StyleToolbarLinkButton(b);
+            WireToolbarLinkHover(b);
+            b.Click += onClick;
+            return b;
+        }
+
+        private static Button CreateChromeButton(string text, EventHandler onClick)
+        {
+            var b = new Button
+            {
+                Text = text,
+                Size = new Size(34, 30),
+                MinimumSize = new Size(34, 30),
+                FlatStyle = FlatStyle.Flat,
+                Font = AppFonts.ButtonCompact,
+                Margin = new Padding(4, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                TabStop = false,
+                Tag = "chrome"
+            };
+            b.UseVisualStyleBackColor = false;
+            b.FlatAppearance.BorderSize = 1;
+            WireChromeButtonHover(b);
+            b.Click += onClick;
+            return b;
+        }
+
+        private static Button CreateCloseButton(EventHandler onClick)
+        {
+            var b = new Button
+            {
+                Text = "✕",
+                Size = new Size(34, 30),
+                MinimumSize = new Size(34, 30),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font(
+                    AppFonts.ButtonCompact.FontFamily,
+                    AppFonts.ButtonCompact.Size,
+                    FontStyle.Bold,
+                    GraphicsUnit.Point),
+                Margin = new Padding(4, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                TabStop = false,
+                Tag = "close"
+            };
+            b.UseVisualStyleBackColor = false;
+            b.FlatAppearance.BorderSize = 1;
+            WireCloseButtonHover(b);
+            b.Click += onClick;
+            return b;
+        }
+
+        private static void WireToolbarLinkHover(Button b)
+        {
+            b.MouseEnter += (_, __) =>
+            {
+                if (!b.Enabled)
+                    return;
+
+                var t = AppTheme.Current;
+                b.ForeColor = t.TextSecondary;
+            };
+            b.MouseLeave += (_, __) => StyleToolbarLinkButton(b);
+        }
+
+        private static void WireChromeButtonHover(Button b)
+        {
+            b.MouseEnter += (_, __) =>
+            {
+                var t = AppTheme.Current;
+                b.BackColor = t.ChromeButtonHoverBg;
+                b.ForeColor = t.ChromeButtonHoverFore;
+            };
+            b.MouseLeave += (_, __) => StyleChromeButton(b);
+        }
+
+        private static void WireCloseButtonHover(Button b)
+        {
+            b.MouseEnter += (_, __) =>
+            {
+                var t = AppTheme.Current;
+                b.BackColor = t.CloseButtonHoverBg;
+                b.ForeColor = t.CloseButtonHoverFore;
+                b.FlatAppearance.BorderColor = t.CloseButtonHoverBg;
+            };
+            b.MouseLeave += (_, __) => StyleCloseButton(b);
+        }
+
+        private void BuildFooter()
+        {
+            _footerPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 28,
+                Padding = new Padding(16, 4, 16, 6)
+            };
 
             _statusLabel = new Label
             {
                 Dock = DockStyle.Fill,
                 AutoEllipsis = true,
-                ForeColor = Color.FromArgb(110, 110, 110),
                 TextAlign = ContentAlignment.MiddleLeft,
                 Text = ""
             };
 
             _footerPanel.Controls.Add(_statusLabel);
-            _footerPanel.Controls.Add(links);
         }
 
         private void BuildScanPanel()
         {
-            _scanPanel = new Panel { Dock = DockStyle.Fill, BackColor = BgApp, Padding = new Padding(16) };
+            _scanPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(16) };
 
             var header = new Panel
             {
@@ -235,7 +509,7 @@ namespace ProxyPulse
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 BackColor = Color.Transparent,
-                Padding = new Padding(0, 0, 0, 8)
+                Padding = new Padding(0, 0, 0, 10)
             };
 
             var headerStack = new TableLayoutPanel
@@ -265,8 +539,7 @@ namespace ProxyPulse
                 Text = "Сканирование…",
                 AutoSize = true,
                 Anchor = AnchorStyles.Left | AnchorStyles.Top,
-                Font = new Font("Segoe UI", 11f, FontStyle.Regular),
-                ForeColor = Color.FromArgb(80, 85, 92),
+                Font = AppFonts.Progress,
                 Margin = new Padding(0),
                 Padding = new Padding(0)
             };
@@ -275,8 +548,7 @@ namespace ProxyPulse
             {
                 AutoSize = true,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top,
-                ForeColor = Color.FromArgb(80, 85, 92),
-                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Font = AppFonts.ProgressBold,
                 TextAlign = ContentAlignment.MiddleRight,
                 Text = "",
                 Visible = false,
@@ -303,7 +575,7 @@ namespace ProxyPulse
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
-                Margin = new Padding(0, 4, 0, 0)
+                Margin = new Padding(0, 4, 0, 8)
             };
 
             _btnCancel = CreateGhostButton("Прервать");
@@ -323,14 +595,10 @@ namespace ProxyPulse
 
             header.Controls.Add(headerStack);
 
-            _cardsHost = new Panel
+            _cardsHost = new ThemedScrollPanel
             {
-                Dock = DockStyle.Fill,
-                AutoScroll = true,
-                BackColor = BgApp,
-                Padding = new Padding(0, 8, 4, 0)
+                Padding = new Padding(0, 8, 0, 0)
             };
-            EnableDoubleBuffer(_cardsHost);
 
             _cardsFlow = new FlowLayoutPanel
             {
@@ -339,53 +607,78 @@ namespace ProxyPulse
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Width = 460,
-                BackColor = BgApp
             };
             EnableDoubleBuffer(_cardsFlow);
 
-            _cardsHost.Controls.Add(_cardsFlow);
+            _cardsHost.SetContent(_cardsFlow);
             _cardsHost.Resize += (_, __) => LayoutProxyCardsWidth();
+            _cardsHost.Viewport.Resize += (_, __) => LayoutProxyCardsWidth();
 
             _scanPanel.Controls.Add(_cardsHost);
             _scanPanel.Resize += (_, __) => LayoutProxyCardsWidth();
             _scanPanel.Controls.Add(header);
         }
 
-        private static Button CreateLinkButton(string text, EventHandler onClick)
+        private static Button CreateGhostButton(string text)
         {
+            return CreateSecondaryButton(text, null, compact: false);
+        }
+
+        private static Button CreateSecondaryButton(string text, EventHandler onClick, bool compact)
+        {
+            var height = compact ? 30 : 34;
             var b = new Button
             {
                 Text = text,
                 AutoSize = true,
-                Height = 32,
-                Margin = new Padding(0, 0, 8, 0),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
-                ForeColor = Color.FromArgb(42, 171, 238),
+                Height = height,
+                MinimumSize = new Size(0, height),
+                Padding = new Padding(compact ? 12 : 14, 0, compact ? 12 : 14, 0),
+                Font = compact ? AppFonts.ButtonCompact : AppFonts.Button,
+                Margin = new Padding(0, 0, compact ? 6 : 8, compact ? 1 : 2),
                 Cursor = Cursors.Hand,
-                Font = new Font("Segoe UI", 9f, FontStyle.Underline)
+                TabStop = true,
+                Tag = "secondary"
             };
-            b.FlatAppearance.BorderSize = 0;
-            b.Click += onClick;
+            StyleSecondaryButton(b);
+            WireSecondaryButtonHover(b);
+
+            if (onClick != null)
+                b.Click += onClick;
+
             return b;
         }
 
-        private static Button CreateGhostButton(string text)
+        private static void WireSecondaryButtonHover(Button b)
         {
-            var b = new Button
+            b.MouseEnter += (_, __) =>
             {
-                Text = text,
-                AutoSize = true,
-                Height = 32,
-                Padding = new Padding(12, 0, 12, 0),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(70, 70, 70),
-                Margin = new Padding(0, 0, 8, 0),
-                Cursor = Cursors.Hand
+                if (!b.Enabled)
+                    return;
+
+                b.BackColor = AppTheme.Current.BtnHover;
             };
-            b.FlatAppearance.BorderColor = Color.FromArgb(220, 224, 230);
-            return b;
+            b.MouseLeave += (_, __) => StyleSecondaryButton(b);
+            b.MouseDown += (_, e) =>
+            {
+                if (e.Button == MouseButtons.Left && b.Enabled)
+                    b.BackColor = AppTheme.Current.BtnPressed;
+            };
+            b.MouseUp += (_, __) =>
+            {
+                if (!b.Enabled)
+                    return;
+
+                var t = AppTheme.Current;
+                var hover = b.ClientRectangle.Contains(b.PointToClient(Cursor.Position));
+                b.BackColor = hover ? t.BtnHover : t.BtnSurface;
+            };
+            b.EnabledChanged += (_, __) => StyleSecondaryButton(b);
+            b.VisibleChanged += (_, __) =>
+            {
+                if (b.Visible)
+                    StyleSecondaryButton(b);
+            };
         }
 
         private static void EnableDoubleBuffer(Control c)
@@ -404,6 +697,8 @@ namespace ProxyPulse
             _btnCancel.Enabled = active;
             _btnNewSearch.Visible = !active;
             _btnNewSearch.Enabled = !active;
+            StyleSecondaryButton(_btnCancel);
+            StyleSecondaryButton(_btnNewSearch);
         }
 
         private async Task StartSearchAsync(bool restart = false)
@@ -429,7 +724,7 @@ namespace ProxyPulse
             _progressBar.Maximum = 100;
             _progressBar.Value = 0;
             _progressBar.MarqueeAnimationSpeed = 0;
-            _progressLabel.Font = new Font("Segoe UI", 11f, FontStyle.Regular);
+            _progressLabel.Font = AppFonts.Progress;
             UpdateOverallProgress();
 
             IProgress<string> fetchLog = new Progress<string>(SetActivityLine);
@@ -477,13 +772,11 @@ namespace ProxyPulse
                     return;
                 }
 
-                _progressBar.Value = token.IsCancellationRequested
-                    ? _progressBar.Value
-                    : 100;
                 if (token.IsCancellationRequested)
                     ShowSearchPaused();
                 else
                 {
+                    _progressBar.Value = 100;
                     _statusLabel.Text = string.Format("Готово · {0} прокси", _sortedKeys.Count);
                     _progressLabel.Text = FormatProgressText();
                 }
@@ -555,7 +848,9 @@ namespace ProxyPulse
                 return;
             }
 
-            var show = _fetchComplete && _scanPanel.Visible && !_searchCancelled;
+            var show = _scanPanel.Visible && (
+                (_fetchComplete && !_searchCancelled)
+                || (_searchCancelled && _sortedKeys.Count > 0));
             _foundCountLabel.Visible = show;
             if (show)
                 _foundCountLabel.Text = string.Format("Найдено {0}", _sortedKeys.Count);
@@ -580,7 +875,9 @@ namespace ProxyPulse
             }
 
             _btnCancel.Enabled = false;
-            _progressLabel.Text = FormatProgressText();
+            StyleSecondaryButton(_btnCancel);
+            _progressBar.Value = 0;
+            _progressLabel.Text = "Поиск приостановлен";
             _statusLabel.Text = "Поиск приостановлен";
             UpdateFoundCountLabel();
         }
@@ -591,7 +888,7 @@ namespace ProxyPulse
             var total = Math.Max(1, _finalDiscovered);
 
             if (_searchCancelled)
-                return string.Format("Поиск приостановлен · {0} из {1}", checkedN, GetCheckTotal());
+                return "Поиск приостановлен";
 
             if (!_fetchComplete)
             {
@@ -604,14 +901,10 @@ namespace ProxyPulse
                     _proxiesTarget);
             }
 
-            return string.Format("Проверка… {0} из {1}", checkedN, total);
-        }
+            if (checkedN >= total)
+                return string.Format("Проверка завершена {0}/{1}", checkedN, total);
 
-        private int GetCheckTotal()
-        {
-            if (_fetchComplete)
-                return Math.Max(1, _finalDiscovered);
-            return Math.Max(1, _checkedCount);
+            return string.Format("Проверка… {0}/{1}", checkedN, total);
         }
 
         /// <summary>0–50% сбор страниц/снимков, 50–100% проверка найденных прокси.</summary>
@@ -670,7 +963,7 @@ namespace ProxyPulse
             _cardsFlow.Controls.Clear();
             _progressBar.Value = 0;
             _progressLabel.Text = "Сканирование…";
-            _progressLabel.Font = new Font("Segoe UI", 11f, FontStyle.Regular);
+            _progressLabel.Font = AppFonts.Progress;
             _statusLabel.Text = "";
             if (_foundCountLabel != null)
             {
@@ -744,7 +1037,7 @@ namespace ProxyPulse
         {
             if (_cardsHost == null)
                 return 460;
-            return Math.Max(200, _cardsHost.ClientSize.Width - 12);
+            return Math.Max(200, _cardsHost.Viewport.ClientSize.Width - 12);
         }
 
         private void LayoutProxyCardsWidth()
@@ -752,7 +1045,8 @@ namespace ProxyPulse
             if (_cardsFlow == null || _cardsHost == null)
                 return;
 
-            _cardsFlow.Width = Math.Max(200, _cardsHost.ClientSize.Width - 8);
+            _cardsFlow.Width = Math.Max(200, _cardsHost.Viewport.ClientSize.Width - 8);
+            _cardsHost.RefreshScrollMetrics();
             var cardWidth = GetProxyCardWidth();
             foreach (Control c in _cardsFlow.Controls)
                 c.Width = cardWidth;
@@ -767,6 +1061,7 @@ namespace ProxyPulse
             _cardsByKey[entry.Key] = card;
             _cardsFlow.Controls.Add(card);
             _cardsFlow.Controls.SetChildIndex(card, Math.Min(index, _cardsFlow.Controls.Count - 1));
+            _cardsHost.RefreshScrollMetrics();
         }
 
         private void ReorderCard(string key)
@@ -803,6 +1098,7 @@ namespace ProxyPulse
             }
 
             _cardsFlow.ResumeLayout(true);
+            _cardsHost.RefreshScrollMetrics();
         }
 
         private void Card_ConnectClick(object sender, EventArgs e)
@@ -873,6 +1169,12 @@ namespace ProxyPulse
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            BorderlessResize.AfterWndProc(this, ref m);
         }
     }
 }

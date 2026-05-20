@@ -11,6 +11,7 @@ namespace ProxyPulse
         public const int MaxMaxProxiesToCollect = 500;
 
         public int MaxProxiesToCollect { get; set; }
+        public bool UseDarkTheme { get; set; }
 
         private static AppSettings _current;
 
@@ -55,6 +56,11 @@ namespace ProxyPulse
                         if (int.TryParse(value, out n))
                             settings.MaxProxiesToCollect = Clamp(n);
                     }
+                    else if (string.Equals(key, "UseDarkTheme", StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(key, "DarkTheme", StringComparison.OrdinalIgnoreCase))
+                    {
+                        settings.UseDarkTheme = ParseBool(value);
+                    }
                 }
             }
             catch
@@ -73,7 +79,8 @@ namespace ProxyPulse
 
             File.WriteAllText(
                 GetSettingsFilePath(),
-                "MaxProxiesToCollect=" + MaxProxiesToCollect + Environment.NewLine);
+                "MaxProxiesToCollect=" + MaxProxiesToCollect + Environment.NewLine
+                + "UseDarkTheme=" + (UseDarkTheme ? "1" : "0") + Environment.NewLine);
 
             _current = this;
         }
@@ -85,6 +92,17 @@ namespace ProxyPulse
             if (value > MaxMaxProxiesToCollect)
                 return MaxMaxProxiesToCollect;
             return value;
+        }
+
+        private static bool ParseBool(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            value = value.Trim();
+            return value == "1"
+                   || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string GetSettingsFilePath()
