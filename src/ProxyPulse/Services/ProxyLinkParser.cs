@@ -19,10 +19,33 @@ namespace ProxyPulse.Services
             @"data-post=""[^""]+/(\d+)""",
             RegexOptions.Compiled);
 
+        /// <summary>Ссылка на более старые посты (rel=prev, в т.ч. if_/id_ в пути archive.org).</summary>
+        private static readonly Regex ArchiveNextPageRegex = new Regex(
+            @"<link\s+rel=""prev""\s+href=""([^""]*?ProxyMTProto\?before=\d+[^""]*)""",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex ArchiveMorePageRegex = new Regex(
+            @"href=""(/web/\d+(?:if_|id_)?/?https://t\.me/s/ProxyMTProto\?before=\d+)""",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex ArchiveSnapshotRegex = new Regex(
+            @"/web/(\d{14})(?:if_|id_)?/?https://t\.me/s/ProxyMTProto",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>Порядок ссылок = порядок в HTML (на 1-й стр. ленты — от новых постов к старым).</summary>
+        /// <summary>Страница содержит ленту Telegram, а не пустую оболочку Wayback.</summary>
+        public static bool LooksLikeTelegramFeed(string html)
+        {
+            if (string.IsNullOrEmpty(html))
+                return false;
+
+            return html.IndexOf("data-post=", StringComparison.OrdinalIgnoreCase) >= 0
+                || html.IndexOf("tgme_widget_message", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         public static List<ProxyEntry> Parse(string text)
         {
             var list = new List<ProxyEntry>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrEmpty(text))
                 return list;
 
@@ -32,9 +55,6 @@ namespace ProxyPulse.Services
             {
                 ProxyEntry entry;
                 if (!TryParseQuery(match.Groups[1].Value, out entry))
-                    continue;
-
-                if (!seen.Add(entry.Key))
                     continue;
 
                 list.Add(entry);
@@ -128,6 +148,74 @@ namespace ProxyPulse.Services
             }
 
             return minId;
+        }
+
+        /// <summary>Относительный href следующей (более старой) страницы ленты в archive.org.</summary>
+        public static string GetArchiveNextPageHref(string html)
+        {
+            if (string.IsNullOrEmpty(html))
+                return null;
+
+            var m = ArchiveNextPageRegex.Match(html);
+            if (m.Success)
+                return NormalizeArchiveFeedHref(m.Groups[1].Value);
+
+            m = ArchiveMorePageRegex.Match(html);
+            return m.Success ? NormalizeArchiveFeedHref(m.Groups[1].Value) : null;
+        }
+
+        private static string NormalizeArchiveFeedHref(string href)
+        {
+            if (string.IsNullOrWhiteSpace(href))
+                return null;
+
+            href = href.Trim();
+            if (href.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                if (href.IndexOf("web.archive.org", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    var pathStart = href.IndexOf("/web/", StringComparison.OrdinalIgnoreCase);
+                    if (pathStart >= 0)
+                        href = href.Substring(pathStart);
+                }
+            }
+
+            return href.StartsWith("/") ? href : "/" + href;
+        }
+
+        /// <summary>before= для следующей страницы (из rel=prev или минимального data-post).</summary>
+        public static long? GetNextPageBeforeId(string html)
+        {
+            var href = GetArchiveNextPageHref(html);
+            if (!string.IsNullOrEmpty(href))
+            {
+                var fromUrl = ArchiveUrlHelper.ParseBeforeId("https://web.archive.org" + href);
+                if (fromUrl.HasValue)
+                    return fromUrl.Value;
+            }
+
+            return GetPaginationBeforeId(html);
+        }
+
+        /// <summary>ID снимка archive.org (20260519104022) для сборки URL, если нет rel=prev.</summary>
+        public static string GetArchiveSnapshotId(string html)
+        {
+            if (string.IsNullOrEmpty(html))
+                return null;
+
+            var m = ArchiveSnapshotRegex.Match(html);
+            return m.Success ? m.Groups[1].Value : null;
+        }
+
+        public static string BuildArchivePageUrl(string snapshotId, long? beforeId)
+        {
+            if (string.IsNullOrEmpty(snapshotId))
+                return null;
+
+            var url = "https://web.archive.org/web/" + snapshotId + "/https://t.me/s/ProxyMTProto";
+            if (beforeId.HasValue)
+                url += "?before=" + beforeId.Value;
+            return url;
         }
     }
 }

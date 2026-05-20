@@ -2,138 +2,274 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using ProxyPulse.Models;
 
 namespace ProxyPulse.Services
 {
-    public sealed class ProxyFeedFetchResult
-    {
-        public ProxyFeedFetchResult()
-        {
-            Proxies = new List<ProxyEntry>();
-            Errors = new List<string>();
-        }
-
-        public List<ProxyEntry> Proxies { get; set; }
-        public int PagesLoaded { get; set; }
-        public List<string> Errors { get; set; }
-    }
-
     public sealed class ProxyFeedService
     {
-        private const int MaxProxies = 500;
-        private const int MaxPagesPerSource = 250;
-        private const int MaxEmptyPagesInRow = 4;
+        /// <summary>Сколько последних уникальных прокси собрать.</summary>
+        public const int DefaultMaxRecentProxies = 100;
 
-        private static readonly string[] ArchiveBases =
-        {
-            "https://web.archive.org/web/2/https://t.me/s/ProxyMTProto",
-            "https://web.archive.org/web/https://t.me/s/ProxyMTProto"
-        };
+        /// <summary>Сколько снимков CDX перебрать (это «страницы» вместо ?before=).</summary>
+        public const int DefaultMaxCdxSnapshotsToScan = 30;
 
-        public ProxyFeedFetchResult Fetch(Action<string> log = null)
-        {
-            var result = new ProxyFeedFetchResult();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private const int MaxUrlCandidatesFirstPage = 3;
+        private const int MsBetweenCdxSnapshots = 1200;
 
-            Log(log, "Архив, снимок 1…");
-            LoadArchivePages(ArchiveBases[0], seen, result, log, 1);
+        private const string ArchiveEntryUrl =
+            "https://web.archive.org/web/2/https://t.me/s/ProxyMTProto";
 
-            Log(log, "Архив, снимок 2…");
-            LoadArchivePages(ArchiveBases[1], seen, result, log, 2);
-
-            if (result.Proxies.Count > MaxProxies)
-                result.Proxies = result.Proxies.Take(MaxProxies).ToList();
-
-            Log(log, string.Format(
-                "Загрузка завершена: {0} прокси, {1} стр.",
-                result.Proxies.Count,
-                result.PagesLoaded));
-            return result;
-        }
-
-        private static void LoadArchivePages(
-            string archiveBase,
-            HashSet<string> seen,
-            ProxyFeedFetchResult result,
+        /// <summary>
+        /// Сбор: 1-я стр. актуальной ленты + снимки CDX (проверено: ?before= не отдаёт ленту).
+        /// </summary>
+        public void FetchToList(
+            List<ProxyEntry> output,
             Action<string> log,
-            int sourceIndex)
+            IProgress<CollectProgress> progress,
+            CancellationToken cancellationToken,
+            int maxRecentProxies = DefaultMaxRecentProxies,
+            int maxCdxSnapshotsToScan = DefaultMaxCdxSnapshotsToScan)
         {
-            var url = archiveBase;
-            long? lastBeforeId = null;
-            var emptyPagesInRow = 0;
+            if (output == null)
+                throw new ArgumentNullException(nameof(output));
 
-            for (var page = 0; page < MaxPagesPerSource; page++)
+            var cap = Math.Max(1, maxRecentProxies);
+            var cdxCap = Math.Max(1, maxCdxSnapshotsToScan);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var errors = new List<string>();
+
+            ReportCdx(progress, 0, cdxCap, 0, cap);
+            Log(log, string.Format(
+                "Сбор: лента (1 стр.) + до {0} снимков CDX → {1} прокси…",
+                cdxCap,
+                cap));
+
+            var cdxListTask = Task.Run(
+                () => ArchiveCdxService.GetRecentSnapshotIds(log, cancellationToken),
+                cancellationToken);
+
+            if (!TryLoadFeedFirstPage(seen, output, errors, log, cancellationToken, cap))
+                Log(log, "Лента: первая страница недоступна");
+
+            ReportCdx(progress, 0, cdxCap, seen.Count, cap);
+
+            var cdxOk = 0;
+            if (!cancellationToken.IsCancellationRequested && seen.Count < cap)
             {
+                IList<string> snapshots;
                 try
                 {
-                    if (page > 0)
-                        Thread.Sleep(350);
-
-                    Log(log, string.Format(
-                        "Архив {0}, стр. {1}: запрос…",
-                        sourceIndex,
-                        page + 1));
-
-                    var html = HttpDownloadHelper.Download(url);
-                    var parsed = ProxyLinkParser.Parse(html);
-
-                    var added = 0;
-                    foreach (var p in parsed)
-                    {
-                        if (seen.Add(p.Key))
-                        {
-                            result.Proxies.Add(p);
-                            added++;
-                        }
-                    }
-
-                    result.PagesLoaded++;
-
-                    if (added == 0)
-                        emptyPagesInRow++;
-                    else
-                        emptyPagesInRow = 0;
-
-                    Log(log, string.Format(
-                        "Архив {0}, стр. {1}: ссылок {2}, новых +{3}, всего {4}",
-                        sourceIndex,
-                        page + 1,
-                        parsed.Count,
-                        added,
-                        result.Proxies.Count));
-
-                    var beforeId = ProxyLinkParser.GetPaginationBeforeId(html);
-                    if (!beforeId.HasValue)
-                        break;
-
-                    if (lastBeforeId.HasValue && beforeId.Value >= lastBeforeId.Value)
-                        break;
-
-                    lastBeforeId = beforeId;
-                    url = archiveBase + "?before=" + beforeId.Value;
-
-                    if (emptyPagesInRow >= MaxEmptyPagesInRow)
-                        break;
-
-                    if (result.Proxies.Count >= MaxProxies)
-                        break;
+                    snapshots = cdxListTask.GetAwaiter().GetResult();
                 }
                 catch (Exception ex)
                 {
-                    result.Errors.Add(string.Format(
-                        "Архив {0}, стр. {1}: {2}",
-                        sourceIndex,
-                        page + 1,
-                        ex.Message));
-                    Log(log, string.Format(
-                        "Архив {0}, стр. {1}: ошибка — {2}",
-                        sourceIndex,
-                        page + 1,
-                        ex.Message));
-                    break;
+                    if (cancellationToken.IsCancellationRequested)
+                        throw;
+
+                    Log(log, "CDX: " + ex.Message);
+                    snapshots = new List<string>();
+                }
+
+                cdxOk = LoadCdxSnapshotsUntilFull(
+                    seen,
+                    output,
+                    errors,
+                    log,
+                    progress,
+                    cancellationToken,
+                    cdxCap,
+                    cap,
+                    snapshots);
+            }
+
+            Log(log, string.Format(
+                "Сбор завершён: {0}/{1} прокси · CDX снимков {2}",
+                seen.Count,
+                cap,
+                cdxOk));
+        }
+
+        private bool TryLoadFeedFirstPage(
+            HashSet<string> seen,
+            List<ProxyEntry> output,
+            List<string> errors,
+            Action<string> log,
+            CancellationToken cancellationToken,
+            int proxyCap)
+        {
+            Log(log, "Лента: первая страница…");
+
+            foreach (var candidate in ArchiveUrlHelper.GetFirstPageCandidates(ArchiveEntryUrl))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var html = HttpDownloadHelper.Download(
+                        candidate,
+                        "https://web.archive.org/",
+                        cancellationToken);
+
+                    if (!ProxyLinkParser.LooksLikeTelegramFeed(html))
+                    {
+                        Log(log, "Лента: ответ без постов Telegram, другой URL…");
+                        continue;
+                    }
+
+                    var added = EmitNewProxies(ProxyLinkParser.Parse(html), seen, output, cancellationToken, proxyCap);
+                    Log(log, string.Format("Лента: +{0} новых, всего {1}/{2}", added, seen.Count, proxyCap));
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        throw;
+
+                    Log(log, "Лента: " + ex.Message);
                 }
             }
+
+            lock (errors)
+            {
+                errors.Add("Лента: не удалось загрузить первую страницу");
+            }
+
+            return false;
+        }
+
+        private int LoadCdxSnapshotsUntilFull(
+            HashSet<string> seen,
+            List<ProxyEntry> output,
+            List<string> errors,
+            Action<string> log,
+            IProgress<CollectProgress> progress,
+            CancellationToken cancellationToken,
+            int maxSnapshots,
+            int proxyCap,
+            IList<string> snapshots)
+        {
+            if (snapshots == null)
+                snapshots = new List<string>();
+
+            var batch = snapshots
+                .OrderByDescending(id => id, StringComparer.Ordinal)
+                .Take(maxSnapshots)
+                .ToList();
+
+            if (batch.Count == 0)
+            {
+                Log(log, "CDX: список снимков пуст");
+                return 0;
+            }
+
+            Log(log, string.Format("CDX: {0} снимков (новые → старые)…", batch.Count));
+            var loaded = 0;
+
+            for (var i = 0; i < batch.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (seen.Count >= proxyCap)
+                    break;
+
+                var snapshotId = batch[i];
+                if (i > 0)
+                    Thread.Sleep(MsBetweenCdxSnapshots);
+
+                try
+                {
+                    var url = ArchiveUrlHelper.FirstPageForSnapshot(snapshotId);
+                    var html = HttpDownloadHelper.Download(
+                        url,
+                        "https://web.archive.org/",
+                        cancellationToken,
+                        HttpDownloadHelper.CdxSnapshotTimeoutMs,
+                        2);
+
+                    if (!ProxyLinkParser.LooksLikeTelegramFeed(html))
+                    {
+                        Log(log, string.Format("CDX {0}/{1} ({2}): пустая страница", i + 1, batch.Count, snapshotId));
+                        continue;
+                    }
+
+                    var added = EmitNewProxies(ProxyLinkParser.Parse(html), seen, output, cancellationToken, proxyCap);
+                    loaded++;
+                    ReportCdx(progress, i + 1, batch.Count, seen.Count, proxyCap);
+
+                    Log(log, string.Format(
+                        "CDX {0}/{1} ({2}): +{3} новых, всего {4}/{5}",
+                        i + 1,
+                        batch.Count,
+                        snapshotId,
+                        added,
+                        seen.Count,
+                        proxyCap));
+
+                    if (seen.Count >= proxyCap)
+                    {
+                        Log(log, string.Format("Достигнут лимит {0} прокси", proxyCap));
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        throw;
+
+                    lock (errors)
+                    {
+                        errors.Add("CDX " + snapshotId + ": " + ex.Message);
+                    }
+
+                    Log(log, string.Format("CDX {0}/{1} ({2}): {3}", i + 1, batch.Count, snapshotId, ex.Message));
+                }
+            }
+
+            return loaded;
+        }
+
+        private static int EmitNewProxies(
+            List<ProxyEntry> parsed,
+            HashSet<string> seen,
+            List<ProxyEntry> output,
+            CancellationToken cancellationToken,
+            int proxyCap)
+        {
+            var added = 0;
+            foreach (var p in parsed)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (seen.Count >= proxyCap)
+                    break;
+
+                if (!seen.Add(p.Key))
+                    continue;
+
+                added++;
+                output.Add(p);
+            }
+
+            return added;
+        }
+
+        private static void ReportCdx(
+            IProgress<CollectProgress> progress,
+            int snapshotsDone,
+            int snapshotsTarget,
+            int proxiesFound,
+            int proxyCap)
+        {
+            if (progress == null)
+                return;
+
+            progress.Report(new CollectProgress
+            {
+                IsCdxPhase = true,
+                CdxSnapshotsDone = snapshotsDone,
+                CdxSnapshotsTarget = Math.Max(1, snapshotsTarget),
+                ProxiesFound = proxiesFound,
+                ProxiesTarget = proxyCap
+            });
         }
 
         private static void Log(Action<string> log, string message)

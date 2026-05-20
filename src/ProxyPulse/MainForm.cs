@@ -13,18 +13,20 @@ namespace ProxyPulse
 {
     public sealed class MainForm : Form
     {
-        private const string AppVersion = "2.4";
+        private static readonly string AppVersion = GetAppVersionLabel();
         private const string WelcomeTagline = "Ищем MTProto-прокси и проверяем доступность";
         private static readonly Color Accent = Color.FromArgb(42, 171, 238);
         private static readonly Color BgApp = Color.FromArgb(240, 243, 247);
 
         private readonly ProxyHealthService _healthService = new ProxyHealthService();
+        private readonly AppSettings _settings = AppSettings.Current;
 
         private Panel _welcomePanel;
         private Panel _scanPanel;
         private ProgressBar _progressBar;
         private Label _progressLabel;
         private Label _statusLabel;
+        private Label _foundCountLabel;
         private Button _btnStart;
         private Button _btnCancel;
         private Button _btnNewSearch;
@@ -36,9 +38,22 @@ namespace ProxyPulse
         private CancellationTokenSource _scanCts;
         private readonly Dictionary<string, ProxyEntry> _availableByKey = new Dictionary<string, ProxyEntry>();
         private readonly List<string> _sortedKeys = new List<string>();
+        private int _discoveredCount;
+        private int _checkedCount;
+        private int _proxiesTarget;
+        private int _collectProxiesFound;
+        private volatile bool _fetchComplete;
+        private volatile bool _searchCancelled;
+        private int _finalDiscovered;
         public MainForm()
         {
             InitializeComponent();
+        }
+
+        private static string GetAppVersionLabel()
+        {
+            var v = Assembly.GetExecutingAssembly().GetName().Version;
+            return v != null ? string.Format("{0}.{1}", v.Major, v.Minor) : "2.6";
         }
 
         private void InitializeComponent()
@@ -162,6 +177,18 @@ namespace ProxyPulse
             CenterCard();
         }
 
+        private void ShowSettings()
+        {
+            using (var dlg = new SettingsForm(_settings))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                _settings.MaxProxiesToCollect = dlg.MaxProxiesToCollect;
+                _settings.Save();
+            }
+        }
+
         private void BuildFooter()
         {
             _footerPanel = new Panel
@@ -182,6 +209,7 @@ namespace ProxyPulse
                 BackColor = Color.Transparent,
                 Margin = new Padding(0)
             };
+            links.Controls.Add(CreateLinkButton("Настройки", (_, __) => ShowSettings()));
             links.Controls.Add(CreateLinkButton("Справка", (_, __) => new HelpForm().ShowDialog(this)));
 
             _statusLabel = new Label
@@ -236,12 +264,38 @@ namespace ProxyPulse
             {
                 Text = "Сканирование…",
                 AutoSize = true,
-                MaximumSize = new Size(2000, 0),
-                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(50, 50, 50),
-                Margin = new Padding(0, 12, 0, 6),
+                Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                Font = new Font("Segoe UI", 11f, FontStyle.Regular),
+                ForeColor = Color.FromArgb(80, 85, 92),
+                Margin = new Padding(0),
                 Padding = new Padding(0)
             };
+
+            _foundCountLabel = new Label
+            {
+                AutoSize = true,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                ForeColor = Color.FromArgb(80, 85, 92),
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleRight,
+                Text = "",
+                Visible = false,
+                Margin = new Padding(12, 0, 0, 0)
+            };
+
+            var progressTextRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
+                Margin = new Padding(0, 10, 0, 4),
+                BackColor = Color.Transparent
+            };
+            progressTextRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            progressTextRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            progressTextRow.Controls.Add(_progressLabel, 0, 0);
+            progressTextRow.Controls.Add(_foundCountLabel, 1, 0);
 
             var btnRow = new FlowLayoutPanel
             {
@@ -253,7 +307,7 @@ namespace ProxyPulse
             };
 
             _btnCancel = CreateGhostButton("Прервать");
-            _btnCancel.Click += (_, __) => { if (_scanCts != null) _scanCts.Cancel(); };
+            _btnCancel.Click += (_, __) => RequestCancelSearch();
 
             _btnNewSearch = CreateGhostButton("Новый поиск");
             _btnNewSearch.Enabled = false;
@@ -264,7 +318,7 @@ namespace ProxyPulse
             btnRow.Controls.Add(_btnNewSearch);
 
             headerStack.Controls.Add(_progressBar, 0, 0);
-            headerStack.Controls.Add(_progressLabel, 0, 1);
+            headerStack.Controls.Add(progressTextRow, 0, 1);
             headerStack.Controls.Add(btnRow, 0, 2);
 
             header.Controls.Add(headerStack);
@@ -360,18 +414,82 @@ namespace ProxyPulse
             ResetScanUi();
             _btnStart.Enabled = false;
             SetSearchActive(true);
-            _statusLabel.Text = "";
-            _progressLabel.Text = "Сканирование…";
-            _progressBar.Style = ProgressBarStyle.Marquee;
-            _progressBar.MarqueeAnimationSpeed = 30;
+            _statusLabel.Text = "Подключение…";
+            _proxiesTarget = _settings.MaxProxiesToCollect;
+            _collectProxiesFound = 0;
+            _fetchComplete = false;
+            _searchCancelled = false;
+            _finalDiscovered = 0;
+            _discoveredCount = 0;
+            _checkedCount = 0;
+
+            _progressBar.Style = ProgressBarStyle.Continuous;
+            _progressBar.Minimum = 0;
+            _progressBar.Maximum = 100;
+            _progressBar.Value = 0;
+            _progressBar.MarqueeAnimationSpeed = 0;
+            _progressLabel.Font = new Font("Segoe UI", 11f, FontStyle.Regular);
+            UpdateOverallProgress();
 
             IProgress<string> fetchLog = new Progress<string>(SetActivityLine);
+            var collectProgress = new Progress<CollectProgress>(OnCollectProgress);
 
-            ProxyFeedFetchResult feed;
+            _scanCts = new CancellationTokenSource();
+            var token = _scanCts.Token;
+            var collected = new List<ProxyEntry>();
+
+            _healthService.ProxyChecking += OnProxyChecking;
+
             try
             {
-                feed = await Task.Run(() => new ProxyFeedService().Fetch(fetchLog.Report))
-                    .ConfigureAwait(true);
+                await Task.Run(
+                    () => new ProxyFeedService().FetchToList(
+                        collected,
+                        fetchLog.Report,
+                        collectProgress,
+                        token,
+                        _proxiesTarget,
+                        ProxyFeedService.DefaultMaxCdxSnapshotsToScan),
+                    token).ConfigureAwait(true);
+
+                _fetchComplete = true;
+                _finalDiscovered = collected.Count;
+                _discoveredCount = collected.Count;
+                _collectProxiesFound = collected.Count;
+                UpdateFoundCountLabel();
+                UpdateOverallProgress();
+
+                if (collected.Count > 0)
+                    await CheckProxiesAsync(collected, token).ConfigureAwait(true);
+
+                if (_discoveredCount == 0)
+                {
+                    MessageBox.Show(
+                        this,
+                        "Не удалось загрузить прокси. Проверьте интернет и доступ к web.archive.org.",
+                        "ProxyPulse",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    _btnStart.Enabled = true;
+                    _welcomePanel.Visible = true;
+                    _scanPanel.Visible = false;
+                    return;
+                }
+
+                _progressBar.Value = token.IsCancellationRequested
+                    ? _progressBar.Value
+                    : 100;
+                if (token.IsCancellationRequested)
+                    ShowSearchPaused();
+                else
+                {
+                    _statusLabel.Text = string.Format("Готово · {0} прокси", _sortedKeys.Count);
+                    _progressLabel.Text = FormatProgressText();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                ShowSearchPaused();
             }
             catch (Exception ex)
             {
@@ -381,56 +499,153 @@ namespace ProxyPulse
                 _scanPanel.Visible = false;
                 return;
             }
-
-            if (feed.Proxies.Count == 0)
-            {
-                var details = feed.Errors.Count > 0
-                    ? string.Join(Environment.NewLine, feed.Errors)
-                    : "Список пуст.";
-                MessageBox.Show(
-                    this,
-                    "Не удалось загрузить прокси.\r\n\r\n" + details,
-                    "ProxyPulse",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                _btnStart.Enabled = true;
-                _welcomePanel.Visible = true;
-                _scanPanel.Visible = false;
-                return;
-            }
-
-            _progressBar.Style = ProgressBarStyle.Continuous;
-            _statusLabel.Text = string.Format("Найдено {0} прокси", feed.Proxies.Count);
-            _progressBar.Maximum = feed.Proxies.Count;
-            _progressBar.Value = 0;
-            _progressLabel.Text = string.Format("Проверено: 0 / {0}", feed.Proxies.Count);
-
-            _scanCts = new CancellationTokenSource();
-            var token = _scanCts.Token;
-
-            _healthService.ProgressChanged += OnProgressChanged;
-            _healthService.ProxyChecking += OnProxyChecking;
-            _healthService.ProxyChecked += OnProxyChecked;
-
-            try
-            {
-                await _healthService.ScanAsync(feed.Proxies, token).ConfigureAwait(true);
-                _statusLabel.Text = token.IsCancellationRequested
-                    ? "Проверка прервана"
-                    : string.Format("Готово · доступно {0} из {1}", _sortedKeys.Count, feed.Proxies.Count);
-            }
-            catch (OperationCanceledException)
-            {
-                _statusLabel.Text = "Проверка прервана";
-            }
             finally
             {
-                _healthService.ProgressChanged -= OnProgressChanged;
                 _healthService.ProxyChecking -= OnProxyChecking;
-                _healthService.ProxyChecked -= OnProxyChecked;
                 SetSearchActive(false);
                 _btnStart.Enabled = true;
             }
+        }
+
+        private void OnCollectProgress(CollectProgress p)
+        {
+            _proxiesTarget = Math.Max(1, p.ProxiesTarget);
+            _collectProxiesFound = p.ProxiesFound;
+            UpdateOverallProgress();
+        }
+
+        private async Task CheckProxiesAsync(List<ProxyEntry> proxies, CancellationToken token)
+        {
+            for (var i = 0; i < proxies.Count; i++)
+            {
+                token.ThrowIfCancellationRequested();
+
+                var entry = proxies[i];
+                var result = await _healthService.CheckOneAsync(entry, token).ConfigureAwait(true);
+                _checkedCount = i + 1;
+                UpdateOverallProgress();
+
+                if (result.IsAvailable)
+                {
+                    if (InvokeRequired)
+                        BeginInvoke(new Action(() => ApplyAvailableResult(result)));
+                    else
+                        ApplyAvailableResult(result);
+                }
+            }
+        }
+
+        private void ApplyAvailableResult(ProxyCheckEventArgs result)
+        {
+            result.Entry.IsAvailable = true;
+            result.Entry.PingMs = result.PingMs;
+            InsertOrUpdateAvailable(result.Entry);
+            UpdateFoundCountLabel();
+        }
+
+        private void UpdateFoundCountLabel()
+        {
+            if (_foundCountLabel == null)
+                return;
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(UpdateFoundCountLabel));
+                return;
+            }
+
+            var show = _fetchComplete && _scanPanel.Visible && !_searchCancelled;
+            _foundCountLabel.Visible = show;
+            if (show)
+                _foundCountLabel.Text = string.Format("Найдено {0}", _sortedKeys.Count);
+        }
+
+        private void RequestCancelSearch()
+        {
+            if (_scanCts == null || _searchCancelled)
+                return;
+
+            _searchCancelled = true;
+            _scanCts.Cancel();
+            ShowSearchPaused();
+        }
+
+        private void ShowSearchPaused()
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(ShowSearchPaused));
+                return;
+            }
+
+            _btnCancel.Enabled = false;
+            _progressLabel.Text = FormatProgressText();
+            _statusLabel.Text = "Поиск приостановлен";
+            UpdateFoundCountLabel();
+        }
+
+        private string FormatProgressText()
+        {
+            var checkedN = _checkedCount;
+            var total = Math.Max(1, _finalDiscovered);
+
+            if (_searchCancelled)
+                return string.Format("Поиск приостановлен · {0} из {1}", checkedN, GetCheckTotal());
+
+            if (!_fetchComplete)
+            {
+                if (_collectProxiesFound == 0)
+                    return "Подключение…";
+
+                return string.Format(
+                    "Сбор… {0} из {1}",
+                    _collectProxiesFound,
+                    _proxiesTarget);
+            }
+
+            return string.Format("Проверка… {0} из {1}", checkedN, total);
+        }
+
+        private int GetCheckTotal()
+        {
+            if (_fetchComplete)
+                return Math.Max(1, _finalDiscovered);
+            return Math.Max(1, _checkedCount);
+        }
+
+        /// <summary>0–50% сбор страниц/снимков, 50–100% проверка найденных прокси.</summary>
+        private void UpdateOverallProgress()
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(UpdateOverallProgress));
+                return;
+            }
+
+            if (_searchCancelled)
+            {
+                ShowSearchPaused();
+                return;
+            }
+
+            var checkedN = _checkedCount;
+            int percent;
+
+            if (!_fetchComplete)
+            {
+                var cap = Math.Max(1, _proxiesTarget);
+                percent = (int)Math.Min(50, 50.0 * _collectProxiesFound / cap);
+            }
+            else
+            {
+                var total = Math.Max(1, _finalDiscovered);
+                percent = 50 + (int)Math.Min(50, 50.0 * checkedN / total);
+            }
+
+            _progressBar.Value = Math.Max(0, Math.Min(100, percent));
+            _progressLabel.Text = FormatProgressText();
+            if (_fetchComplete)
+                UpdateFoundCountLabel();
         }
 
         private void ResetScanUi()
@@ -441,19 +656,34 @@ namespace ProxyPulse
                 _scanCts.Dispose();
             }
             _scanCts = null;
+            _fetchComplete = false;
+            _searchCancelled = false;
+            _finalDiscovered = 0;
+            _discoveredCount = 0;
+            _checkedCount = 0;
+            _proxiesTarget = _settings.MaxProxiesToCollect;
+            _collectProxiesFound = 0;
             _availableByKey.Clear();
             _sortedKeys.Clear();
             _cardsByKey.Clear();
             _cardsFlow.Controls.Clear();
             _progressBar.Value = 0;
             _progressLabel.Text = "Сканирование…";
-            _progressLabel.Font = new Font("Segoe UI", 14f, FontStyle.Bold);
+            _progressLabel.Font = new Font("Segoe UI", 11f, FontStyle.Regular);
             _statusLabel.Text = "";
+            if (_foundCountLabel != null)
+            {
+                _foundCountLabel.Text = "";
+                _foundCountLabel.Visible = false;
+            }
         }
 
         private void SetActivityLine(string line)
         {
-            if (_statusLabel == null || string.IsNullOrEmpty(line))
+            if (_statusLabel == null || string.IsNullOrEmpty(line) || _searchCancelled)
+                return;
+
+            if (_fetchComplete)
                 return;
 
             if (InvokeRequired)
@@ -467,7 +697,7 @@ namespace ProxyPulse
 
         private void OnProxyChecking(object sender, ProxyCheckingEventArgs e)
         {
-            if (e.Entry == null)
+            if (e.Entry == null || _searchCancelled || !_fetchComplete)
                 return;
 
             if (InvokeRequired)
@@ -477,47 +707,19 @@ namespace ProxyPulse
             }
 
             _statusLabel.Text = string.Format("Проверка: {0}", e.Entry.DisplayLabel);
-        }
-
-        private void OnProgressChanged(object sender, ScanProgressEventArgs e)
-        {
-            if (InvokeRequired)
-            {
-                BeginInvoke(new Action(() => OnProgressChanged(sender, e)));
-                return;
-            }
-
-            _progressBar.Value = Math.Min(e.Completed, _progressBar.Maximum);
-            _progressLabel.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
-            _progressLabel.Text = string.Format("Проверено: {0} / {1}", e.Completed, e.Total);
-        }
-
-        private void OnProxyChecked(object sender, ProxyCheckEventArgs e)
-        {
-            if (!e.IsAvailable)
-                return;
-
-            if (InvokeRequired)
-            {
-                BeginInvoke(new Action(() => OnProxyChecked(sender, e)));
-                return;
-            }
-
-            e.Entry.IsAvailable = true;
-            e.Entry.PingMs = e.PingMs;
-            InsertOrUpdateAvailable(e.Entry);
+            UpdateFoundCountLabel();
         }
 
         private void InsertOrUpdateAvailable(ProxyEntry entry)
         {
-            if (_availableByKey.ContainsKey(entry.Key))
+            var isNew = !_availableByKey.ContainsKey(entry.Key);
+            _availableByKey[entry.Key] = entry;
+
+            if (!isNew)
             {
-                _availableByKey[entry.Key] = entry;
                 _sortedKeys.Remove(entry.Key);
-            }
-            else
-            {
-                _availableByKey[entry.Key] = entry;
+                if (_cardsByKey.ContainsKey(entry.Key))
+                    _cardsByKey[entry.Key].Bind(entry);
             }
 
             var ping = entry.PingMs ?? int.MaxValue;
@@ -531,7 +733,36 @@ namespace ProxyPulse
             else
                 _sortedKeys.Insert(insertAt, entry.Key);
 
-            RebuildCards();
+            if (isNew)
+                AddCardAt(entry, insertAt < 0 ? _sortedKeys.Count - 1 : insertAt);
+            else
+                ReorderCard(entry.Key);
+        }
+
+        private void AddCardAt(ProxyEntry entry, int index)
+        {
+            var cardWidth = Math.Max(200, _cardsHost.ClientSize.Width - 12);
+            var card = new ProxyCardControl { Width = cardWidth };
+            card.Bind(entry);
+            card.ConnectClick += Card_ConnectClick;
+            card.RecheckClick += Card_RecheckClick;
+            _cardsByKey[entry.Key] = card;
+            _cardsFlow.Controls.Add(card);
+            _cardsFlow.Controls.SetChildIndex(card, Math.Min(index, _cardsFlow.Controls.Count - 1));
+        }
+
+        private void ReorderCard(string key)
+        {
+            if (!_cardsByKey.ContainsKey(key))
+            {
+                RebuildCards();
+                return;
+            }
+
+            var card = _cardsByKey[key];
+            var index = _sortedKeys.IndexOf(key);
+            if (index >= 0)
+                _cardsFlow.Controls.SetChildIndex(card, index);
         }
 
         private void RebuildCards()
@@ -596,6 +827,7 @@ namespace ProxyPulse
                     _availableByKey.Remove(card.Entry.Key);
                     _sortedKeys.Remove(card.Entry.Key);
                     RebuildCards();
+                    UpdateFoundCountLabel();
                     MessageBox.Show(this, "Прокси недоступен.", "ProxyPulse",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
