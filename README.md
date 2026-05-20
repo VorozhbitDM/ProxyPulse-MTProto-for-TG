@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases"><img src="https://img.shields.io/github/v/release/VorozhbitDM/ProxyPulse-MTProto-for-TG?style=flat-square&label=Release" alt="Release"></a>
+  <a href="https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases/tag/v2.4"><img src="https://img.shields.io/github/v/release/VorozhbitDM/ProxyPulse-MTProto-for-TG/v2.4?style=flat-square&label=Release" alt="Release v2.4"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT"></a>
   <a href="https://dotnet.microsoft.com/download/dotnet-framework/net472"><img src="https://img.shields.io/badge/.NET%20Framework-4.7.2%2B-512BD4?style=flat-square" alt=".NET Framework"></a>
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Windows">
@@ -46,7 +46,7 @@ Telegram иногда недоступен напрямую. В каналах �
 
 ## Быстрый старт
 
-1. Скачайте **`ProxyPulse-v2.4-win-x64.zip`** из [Releases](https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases).
+1. Скачайте **`ProxyPulse-v2.4-win-x64.zip`** в [релизе v2.4](https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases/tag/v2.4) (раздел *Assets*).
 2. Распакуйте архив и запустите **`ProxyPulse.exe`** (один файл, без dll).
 3. Нажмите **«Начать поиск»**.
 4. Кликните по прокси в списке — Telegram предложит подключение.
