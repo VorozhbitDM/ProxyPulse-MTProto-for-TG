@@ -13,7 +13,7 @@ namespace ProxyPulse
 {
     public sealed class MainForm : Form
     {
-        private const string AppVersion = "2.3";
+        private const string AppVersion = "2.4";
         private const string WelcomeTagline = "Ищем MTProto-прокси и проверяем доступность";
         private static readonly Color Accent = Color.FromArgb(42, 171, 238);
         private static readonly Color BgApp = Color.FromArgb(240, 243, 247);

@@ -6,8 +6,8 @@ namespace ProxyPulse
         public const string GitHubProject =
             "https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG";
 
-        /// <summary>Страница с вариантами доната (раздел README на GitHub).</summary>
-        public const string Donate =
-            "https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG#поддержать-проект";
+        /// <summary>Перевод на ЮMoney.</summary>
+        public const string YooMoney =
+            "https://yoomoney.ru/to/4100119536071248";
     }
 }

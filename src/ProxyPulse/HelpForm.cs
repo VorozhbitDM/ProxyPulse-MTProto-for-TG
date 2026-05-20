@@ -26,7 +26,7 @@ namespace ProxyPulse
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             var versionText = version != null
                 ? string.Format("{0}.{1}", version.Major, version.Minor)
-                : "2.3";
+                : "2.4";
 
             var title = new Label
             {
@@ -66,9 +66,9 @@ namespace ProxyPulse
             btnGit.FlatAppearance.BorderSize = 0;
             btnGit.Click += (_, __) => OpenUrl(AppLinks.GitHubProject);
 
-            var btnDonate = new Button
+            var btnYooMoney = new Button
             {
-                Text = "Задонатить",
+                Text = "ЮMoney",
                 Location = new Point(224, 112),
                 Size = new Size(188, 36),
                 FlatStyle = FlatStyle.Flat,
@@ -76,8 +76,8 @@ namespace ProxyPulse
                 ForeColor = Color.FromArgb(50, 50, 50),
                 Cursor = Cursors.Hand
             };
-            btnDonate.FlatAppearance.BorderColor = Color.FromArgb(210, 216, 224);
-            btnDonate.Click += (_, __) => OpenUrl(AppLinks.Donate);
+            btnYooMoney.FlatAppearance.BorderColor = Color.FromArgb(210, 216, 224);
+            btnYooMoney.Click += (_, __) => OpenUrl(AppLinks.YooMoney);
 
             var close = new Button
             {
@@ -94,7 +94,7 @@ namespace ProxyPulse
             Controls.Add(ver);
             Controls.Add(desc);
             Controls.Add(btnGit);
-            Controls.Add(btnDonate);
+            Controls.Add(btnYooMoney);
             Controls.Add(close);
             AcceptButton = close;
         }
