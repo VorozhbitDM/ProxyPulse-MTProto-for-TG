@@ -20,5 +20,5 @@ Desktop.ini
 agent-transcripts/
 assets/
 
-# OpenSpec drafts (optional — remove line if you want specs in repo)
-# openspec/
+# OpenSpec (локальные черновики, не в репозиторий)
+openspec/
