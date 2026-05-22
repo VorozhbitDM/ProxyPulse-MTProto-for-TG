@@ -16,6 +16,8 @@
 </p>
 
 
+> [📱 Версия для Android](https://github.com/VorozhbitDM/ProxyPulse-MTProto-android)
+
 ---
 
 ## Возможности
