@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>Поиск MTProto-прокси и проверка доступности</strong><br>
-  Подключение в Telegram одним кликом · Windows · без VPN и API-ключей
+  Подключение в Telegram одним кликом · Windows · без VPN
 </p>
 
 <p align="center">
