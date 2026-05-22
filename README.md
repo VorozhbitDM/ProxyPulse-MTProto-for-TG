@@ -12,7 +12,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT"></a>
   <a href="https://dotnet.microsoft.com/download/dotnet-framework/net472"><img src="https://img.shields.io/badge/.NET%20Framework-4.7.2%2B-512BD4?style=flat-square" alt=".NET Framework"></a>
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Windows">
-  <a href="https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases"><img src="https://img.shields.io/github/downloads/VorozhbitDM/ProxyPulse-MTProto-for-TG/total?label=Downloads&logo=github&style=flat-square&cacheSeconds=600&v=2" alt="Downloads"></a>
+  <a href="https://github.com/VorozhbitDM/ProxyPulse-MTProto-for-TG/releases"><img src="https://img.shields.io/github/downloads/VorozhbitDM/ProxyPulse-MTProto-for-TG/total?label=Downloads&logo=github&style=flat-square&cacheSeconds=600" alt="Downloads"></a>
 </p>
 
 
