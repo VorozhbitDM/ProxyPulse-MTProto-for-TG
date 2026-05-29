@@ -61,7 +61,7 @@ namespace ProxyPulse
         private static string GetAppVersionLabel()
         {
             var v = Assembly.GetExecutingAssembly().GetName().Version;
-            return v != null ? string.Format("{0}.{1}", v.Major, v.Minor) : "2.8";
+            return v != null ? string.Format("{0}.{1}", v.Major, v.Minor) : "2.9";
         }
 
         private void InitializeComponent()
@@ -201,6 +201,8 @@ namespace ProxyPulse
 
                 _settings.MaxProxiesToCollect = dlg.MaxProxiesToCollect;
                 _settings.UseDarkTheme = dlg.UseDarkTheme;
+                _settings.FeedSource = dlg.FeedSource;
+                TgStatSessionStore.CookieHeader = dlg.TgStatCookieHeader;
                 _settings.Save();
                 ApplyTheme();
             }
@@ -735,6 +737,8 @@ namespace ProxyPulse
             var collected = new List<ProxyEntry>();
 
             _healthService.ProxyChecking += OnProxyChecking;
+            _healthService.ProgressChanged += OnScanProgressChanged;
+            _healthService.ProxyChecked += OnProxyChecked;
 
             try
             {
@@ -745,7 +749,8 @@ namespace ProxyPulse
                         collectProgress,
                         token,
                         _proxiesTarget,
-                        ProxyFeedService.DefaultMaxCdxSnapshotsToScan),
+                        ProxyFeedService.DefaultMaxCdxSnapshotsToScan,
+                        _settings.FeedSource),
                     token).ConfigureAwait(true);
 
                 _fetchComplete = true;
@@ -756,7 +761,7 @@ namespace ProxyPulse
                 UpdateOverallProgress();
 
                 if (collected.Count > 0)
-                    await CheckProxiesAsync(collected, token).ConfigureAwait(true);
+                    await _healthService.ScanAsync(collected, token).ConfigureAwait(true);
 
                 if (_discoveredCount == 0)
                 {
@@ -796,6 +801,8 @@ namespace ProxyPulse
             finally
             {
                 _healthService.ProxyChecking -= OnProxyChecking;
+                _healthService.ProgressChanged -= OnScanProgressChanged;
+                _healthService.ProxyChecked -= OnProxyChecked;
                 SetSearchActive(false);
                 _btnStart.Enabled = true;
             }
@@ -808,25 +815,27 @@ namespace ProxyPulse
             UpdateOverallProgress();
         }
 
-        private async Task CheckProxiesAsync(List<ProxyEntry> proxies, CancellationToken token)
+        private void OnScanProgressChanged(object sender, ScanProgressEventArgs e)
         {
-            for (var i = 0; i < proxies.Count; i++)
-            {
-                token.ThrowIfCancellationRequested();
+            if (e == null || _searchCancelled || !_fetchComplete)
+                return;
 
-                var entry = proxies[i];
-                var result = await _healthService.CheckOneAsync(entry, token).ConfigureAwait(true);
-                _checkedCount = i + 1;
+            _checkedCount = e.Completed;
+            if (InvokeRequired)
+                BeginInvoke(new Action(UpdateOverallProgress));
+            else
                 UpdateOverallProgress();
+        }
 
-                if (result.IsAvailable)
-                {
-                    if (InvokeRequired)
-                        BeginInvoke(new Action(() => ApplyAvailableResult(result)));
-                    else
-                        ApplyAvailableResult(result);
-                }
-            }
+        private void OnProxyChecked(object sender, ProxyCheckEventArgs e)
+        {
+            if (e == null || !e.IsAvailable || _searchCancelled || !_fetchComplete)
+                return;
+
+            if (InvokeRequired)
+                BeginInvoke(new Action(() => ApplyAvailableResult(e)));
+            else
+                ApplyAvailableResult(e);
         }
 
         private void ApplyAvailableResult(ProxyCheckEventArgs result)

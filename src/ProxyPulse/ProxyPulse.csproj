@@ -5,9 +5,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>ProxyPulse</RootNamespace>
     <AssemblyName>ProxyPulse</AssemblyName>
-    <AssemblyVersion>2.8.0.0</AssemblyVersion>
-    <FileVersion>2.8.0.0</FileVersion>
-    <Version>2.8.0</Version>
+    <AssemblyVersion>2.9.0.0</AssemblyVersion>
+    <FileVersion>2.9.0.0</FileVersion>
+    <Version>2.9.0</Version>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <LangVersion>7.3</LangVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -16,6 +16,9 @@
   <ItemGroup>
     <EmbeddedResource Include="app.ico" />
     <None Include="app.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Security" />
   </ItemGroup>
   <Target Name="EnsureAppIcon" BeforeTargets="BeforeBuild" Condition="Exists('app.png')">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\scripts\gen-app-icon.ps1&quot;" />

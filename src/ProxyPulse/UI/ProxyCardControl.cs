@@ -8,7 +8,7 @@ namespace ProxyPulse.UI
 {
     public sealed class ProxyCardControl : Panel
     {
-        private const string ConnectHintText = "Нажмите, чтобы подключить";
+        private const string ConnectHintText = "Нажми для подключения";
 
         private Color _bgCard;
         private Color _textMuted;
@@ -22,6 +22,7 @@ namespace ProxyPulse.UI
         private readonly Panel _body;
         private readonly Label _addressLabel;
         private readonly Label _pingLabel;
+        private readonly Label _dateLabel;
         private readonly Label _connectHintLabel;
         private readonly Button _btnRefresh;
         private readonly ToolTip _toolTip;
@@ -37,7 +38,7 @@ namespace ProxyPulse.UI
         public ProxyCardControl()
         {
             AppFonts.EnsureInitialized();
-            Height = 52;
+            Height = 72;
             Margin = new Padding(0, 0, 0, 6);
             Cursor = Cursors.Hand;
             Padding = new Padding(0);
@@ -81,6 +82,14 @@ namespace ProxyPulse.UI
                 Location = new Point(0, 22)
             };
 
+            _dateLabel = new Label
+            {
+                AutoSize = true,
+                Font = AppFonts.CardHint,
+                Location = new Point(0, 40),
+                Visible = false
+            };
+
             _connectHintLabel = new Label
             {
                 Text = ConnectHintText,
@@ -119,6 +128,7 @@ namespace ProxyPulse.UI
 
             _body.Controls.Add(_addressLabel);
             _body.Controls.Add(_pingLabel);
+            _body.Controls.Add(_dateLabel);
             _body.Controls.Add(_connectHintLabel);
             _body.Controls.Add(_btnRefresh);
 
@@ -129,12 +139,14 @@ namespace ProxyPulse.UI
             WireHover(_body);
             WireHover(_addressLabel);
             WireHover(_pingLabel);
+            WireHover(_dateLabel);
             WireHover(_connectHintLabel);
 
             WireConnectArea(this);
             WireConnectArea(_body);
             WireConnectArea(_addressLabel);
             WireConnectArea(_pingLabel);
+            WireConnectArea(_dateLabel);
             WireConnectArea(_connectHintLabel);
 
             Resize += (_, __) => LayoutBody();
@@ -186,6 +198,7 @@ namespace ProxyPulse.UI
             BackColor = _hover ? Blend(_bgCard, _accentColor, 72) : _bgCard;
             _addressLabel.ForeColor = t.CardAddress;
             _connectHintLabel.ForeColor = t.Accent;
+            _dateLabel.ForeColor = t.TextMuted;
             StyleRefreshButton();
             UpdatePing();
         }
@@ -211,6 +224,8 @@ namespace ProxyPulse.UI
             if (Entry == null)
                 return;
 
+            UpdatePublishedDate();
+
             if (!Entry.IsAvailable || !Entry.PingMs.HasValue)
             {
                 _pingLabel.Text = "—";
@@ -221,10 +236,21 @@ namespace ProxyPulse.UI
             }
 
             var ms = Entry.PingMs.Value;
-            _pingLabel.Text = string.Format("{0} ms", ms);
+            _pingLabel.Text = Entry.PingDisplay;
             _accentColor = GetPingColor(ms);
             _pingLabel.ForeColor = _accentColor;
             _accentStrip.BackColor = _accentColor;
+        }
+
+        private void UpdatePublishedDate()
+        {
+            if (_dateLabel == null || Entry == null)
+                return;
+
+            var caption = Entry.PublishedCaption;
+            _dateLabel.Text = caption ?? string.Empty;
+            _dateLabel.ForeColor = _textMuted;
+            _dateLabel.Visible = !string.IsNullOrEmpty(caption);
         }
 
         public static Color GetPingColor(int ms)
@@ -241,6 +267,7 @@ namespace ProxyPulse.UI
             _pingLabel.Text = "проверка…";
             _pingLabel.ForeColor = _textMuted;
             _accentStrip.BackColor = _stripUnknown;
+            UpdatePublishedDate();
         }
 
         private void UpdateConnectHint()
@@ -273,7 +300,7 @@ namespace ProxyPulse.UI
 
             if (_connectHintLabel.Visible)
             {
-                var hintTop = Math.Max(0, (bodyH - _connectHintLabel.Height) / 2);
+                var hintTop = _pingLabel.Top + 1;
                 _connectHintLabel.Location = new Point(
                     Math.Max(0, innerW - btnW - gap - _connectHintLabel.Width),
                     hintTop);

@@ -34,6 +34,10 @@ namespace ProxyPulse.UI
             Controls.Add(_viewport);
             Controls.Add(_scroll);
             _viewport.Resize += (_, __) => UpdateScrollMetrics();
+
+            MouseWheel += OnMouseWheel;
+            _viewport.MouseWheel += OnMouseWheel;
+            _scroll.MouseWheel += OnMouseWheel;
         }
 
         public Panel Viewport
@@ -45,6 +49,7 @@ namespace ProxyPulse.UI
         {
             if (_content != null)
             {
+                DetachWheelHandlers(_content);
                 _content.SizeChanged -= Content_SizeChanged;
                 _content.ControlAdded -= Content_Changed;
                 _content.ControlRemoved -= Content_Changed;
@@ -61,6 +66,7 @@ namespace ProxyPulse.UI
             _content.SizeChanged += Content_SizeChanged;
             _content.ControlAdded += Content_Changed;
             _content.ControlRemoved += Content_Changed;
+            AttachWheelHandlers(_content);
             UpdateScrollMetrics();
         }
 
@@ -88,7 +94,49 @@ namespace ProxyPulse.UI
 
         private void Content_Changed(object sender, ControlEventArgs e)
         {
+            if (e.Control != null)
+                AttachWheelHandlers(e.Control);
             UpdateScrollMetrics();
+        }
+
+        private void AttachWheelHandlers(Control root)
+        {
+            if (root == null)
+                return;
+
+            root.MouseWheel -= OnMouseWheel;
+            root.MouseWheel += OnMouseWheel;
+            root.ControlAdded -= Content_Changed;
+            root.ControlAdded += Content_Changed;
+
+            foreach (Control child in root.Controls)
+                AttachWheelHandlers(child);
+        }
+
+        private void DetachWheelHandlers(Control root)
+        {
+            if (root == null)
+                return;
+
+            root.MouseWheel -= OnMouseWheel;
+            root.ControlAdded -= Content_Changed;
+            foreach (Control child in root.Controls)
+                DetachWheelHandlers(child);
+        }
+
+        private void OnMouseWheel(object sender, MouseEventArgs e)
+        {
+            if (!_scroll.Visible)
+                return;
+
+            var delta = e.Delta > 0 ? -_scroll.SmallChange : _scroll.SmallChange;
+            var max = Math.Max(0, _scroll.Maximum - _scroll.LargeChange + 1);
+            var next = Math.Max(0, Math.Min(max, _scroll.Value + delta));
+            if (next == _scroll.Value)
+                return;
+
+            _scroll.Value = next;
+            ApplyScrollOffset();
         }
 
         private void UpdateScrollMetrics()

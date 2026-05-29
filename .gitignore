@@ -1,3 +1,6 @@
+# Android (отдельный репозиторий, не для Windows-релиза)
+android/
+
 # Build
 bin/
 obj/

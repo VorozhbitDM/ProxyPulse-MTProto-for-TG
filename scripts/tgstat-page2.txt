@@ -1,0 +1,42 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="  site-com">
+    <head>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-param" content="_tgstat_csrk">
+<meta name="csrf-token" content="cENmkOkoeJg7NiRkcBQLOKeSvuy9VGneZ4rOlAtsINICMg-nrmQz82RiR1RBOVgV7sTts48sCpEz776tTx1KpA==">
+<title></title>
+<link href="/static/css/app.css?v=1778530249" rel="stylesheet">
+<script></script>
+<link rel="alternate" hreflang="ru" href="https://tgstat.com/ru/error?channel_name=%40ProxyMTProto" />
+<link rel="alternate" hreflang="en" href="https://tgstat.com/error?channel_name=%40ProxyMTProto" />
+<link rel="alternate" hreflang="uz" href="https://tgstat.com/uz/error?channel_name=%40ProxyMTProto" />
+
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=3">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=3">
+<link rel="manifest" href="/site.webmanifest?v=3">
+<link rel="mask-icon" href="/safari-pinned-tab.svg?v=3" color="#303744">
+<link rel="shortcut icon" href="/favicon.ico?v=3">
+<meta name="msapplication-TileColor" content="#2b5797">
+<meta name="theme-color" content="#303744">
+
+<meta name="apple-mobile-web-app-title" content="TGStat">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-startup-image" href="/favicon/apple-launch.png">
+    </head>
+
+    <body class="" data-layout="topnav" data-layout-config='{"layoutBoxed":false,"darkMode":false,"showRightSidebarOnStart": true}'>
+    
+    <div class="wrapper">
+
+        <div class="content-page d-flex flex-column p-0">
+            <div class="content p-0 col">
+                <div class="fixed-top">
+                    
+
+<div class="navbar-custom topnav-navbar topnav-navbar-dark">
+    <div

@@ -12,12 +12,14 @@ namespace ProxyPulse
 
         public int MaxProxiesToCollect { get; set; }
         public bool UseDarkTheme { get; set; }
+        public FeedSourceMode FeedSource { get; set; }
 
         private static AppSettings _current;
 
         public AppSettings()
         {
             MaxProxiesToCollect = DefaultMaxProxiesToCollect;
+            FeedSource = FeedSourceMode.Bypass;
         }
 
         public static AppSettings Current
@@ -50,6 +52,17 @@ namespace ProxyPulse
 
                     var key = line.Substring(0, eq).Trim();
                     var value = line.Substring(eq + 1).Trim();
+                    if (string.Equals(key, "FeedSource", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(key, "FeedSourceMode", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (string.Equals(value, "Mirrors", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(value, "Archive", StringComparison.OrdinalIgnoreCase))
+                        {
+                            settings.FeedSource = FeedSourceMode.Bypass;
+                            continue;
+                        }
+                    }
+
                     if (string.Equals(key, "MaxProxiesToCollect", StringComparison.OrdinalIgnoreCase))
                     {
                         int n;
@@ -60,6 +73,26 @@ namespace ProxyPulse
                              || string.Equals(key, "DarkTheme", StringComparison.OrdinalIgnoreCase))
                     {
                         settings.UseDarkTheme = ParseBool(value);
+                    }
+                    else if (string.Equals(key, "FeedSource", StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(key, "FeedSourceMode", StringComparison.OrdinalIgnoreCase))
+                    {
+                        FeedSourceMode mode;
+                        if (Enum.TryParse(value, true, out mode))
+                            settings.FeedSource = NormalizeFeedSource(mode);
+                        else
+                        {
+                            int n;
+                            if (int.TryParse(value, out n))
+                                settings.FeedSource = NormalizeFeedSourceFromLegacyInt(n);
+                        }
+                    }
+                    else if (string.Equals(key, "UseRestrictionBypass", StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(key, "UseArchiveBypass", StringComparison.OrdinalIgnoreCase))
+                    {
+                        settings.FeedSource = ParseBool(value)
+                            ? FeedSourceMode.Bypass
+                            : FeedSourceMode.Direct;
                     }
                 }
             }
@@ -80,7 +113,8 @@ namespace ProxyPulse
             File.WriteAllText(
                 GetSettingsFilePath(),
                 "MaxProxiesToCollect=" + MaxProxiesToCollect + Environment.NewLine
-                + "UseDarkTheme=" + (UseDarkTheme ? "1" : "0") + Environment.NewLine);
+                + "UseDarkTheme=" + (UseDarkTheme ? "1" : "0") + Environment.NewLine
+                + "FeedSource=" + FeedSource + Environment.NewLine);
 
             _current = this;
         }
@@ -92,6 +126,22 @@ namespace ProxyPulse
             if (value > MaxMaxProxiesToCollect)
                 return MaxMaxProxiesToCollect;
             return value;
+        }
+
+        private static FeedSourceMode NormalizeFeedSource(FeedSourceMode mode)
+        {
+            if (mode == FeedSourceMode.Direct)
+                return FeedSourceMode.Direct;
+
+            return FeedSourceMode.Bypass;
+        }
+
+        private static FeedSourceMode NormalizeFeedSourceFromLegacyInt(int value)
+        {
+            if (value == 0)
+                return FeedSourceMode.Direct;
+
+            return FeedSourceMode.Bypass;
         }
 
         private static bool ParseBool(string value)

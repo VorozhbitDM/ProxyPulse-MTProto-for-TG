@@ -9,6 +9,7 @@ namespace ProxyPulse.Models
         public string Secret { get; set; }
         public int? PingMs { get; set; }
         public bool IsAvailable { get; set; }
+        public DateTime? PublishedAt { get; set; }
 
         public string Key
         {
@@ -30,6 +31,26 @@ namespace ProxyPulse.Models
             }
         }
 
+        public string PublishedCaption
+        {
+            get
+            {
+                return PublishedAt.HasValue
+                    ? string.Format("Опубликовано: {0}", PublishedDisplay)
+                    : null;
+            }
+        }
+
+        public string PublishedDisplay
+        {
+            get
+            {
+                return PublishedAt.HasValue
+                    ? PublishedAt.Value.ToLocalTime().ToString("dd.MM.yyyy")
+                    : null;
+            }
+        }
+
         public ProxyEntry Clone()
         {
             return new ProxyEntry
@@ -38,7 +59,8 @@ namespace ProxyPulse.Models
                 Port = Port,
                 Secret = Secret,
                 PingMs = PingMs,
-                IsAvailable = IsAvailable
+                IsAvailable = IsAvailable,
+                PublishedAt = PublishedAt
             };
         }
     }

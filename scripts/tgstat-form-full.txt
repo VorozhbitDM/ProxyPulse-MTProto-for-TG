@@ -1,0 +1,40 @@
+﻿<form id="posts-list-form" class="lm-form" action="/channel/@ProxyMTProto/posts-last" method="POST" autocomplete="off">
+<input type="hidden" name="_tgstat_csrk" value="pnH_VEt3MKCcONc1j8LjosC5deo_l9TmPvnkb3V4XNvWK4syJxl82NtrkU3qhI_HgckT0mbS5rNzsb49BQgxlw==">
+
+                    <div class="card border mb-2 mb-md-3">
+                        <div class="card-body py-1 px-2 px-sm-3">
+                            <div class="card-widgets">
+                                <a class="d-block collapse-arrow collapsed mt-1 mr-n1" data-toggle="collapse" href="#postsFilterCollapse" role="button" aria-expanded="false" aria-controls="postsFilterCollapse">
+                                    <i class="uil-angle-down"></i>
+                                </a>
+                            </div>
+                            <div class="card-title mt-1 mb-1 text-dark">
+                                <i class="uil-filter"></i> Posts filter                            </div>
+
+                            <div id="postsFilterCollapse" class="collapse">
+                                <hr class="mt-0">
+                                <div class="row">
+                                    <div class="col-12 col-sm-6">
+                                        <div class="form-group field-date">
+
+<select id="date" class="form-control custom-select" name="date">
+<option value="0">Select month</option>
+</select>
+
+<p class="help-block help-block-error"></p>
+</div>                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <div class="form-group field-q">
+
+<input type="text" id="q" class="form-control" name="q" value="" placeholder="Type in the keyword or phrase">
+
+<p class="help-block help-block-error"></p>
+</div>                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-12 mb-n2">
+                                        <div class="d-inline-block mr-3">
+                                            <div class="form-group field-hidedeleted">
+<div class="custom-control custom-checkbox"><input type="hidden" name="hideDeleted" value="0"><input type="checkbox" id="hidedeleted" class="custom-control-input" name="hideDeleted" value="1" checked><label class="custom-control-label" for="hidedeleted">Hide deleted</label><p class="help-block help-block-error"></p></div>
+</div>                                        </div>
+        

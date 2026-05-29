@@ -8,6 +8,7 @@ using System.IO;
 static class GenAppIcon
 {
     static readonly int[] Sizes = { 16, 24, 32, 48, 64, 128, 256 };
+    const double DefaultIconScale = 0.78;
 
     static void Main(string[] args)
     {
@@ -18,6 +19,17 @@ static class GenAppIcon
         var outPath = args.Length > 1
             ? Path.GetFullPath(args[1])
             : Path.Combine(root, "src", "ProxyPulse", "app.ico");
+        var scale = DefaultIconScale;
+        if (args.Length > 2)
+        {
+            double parsed;
+            if (double.TryParse(args[2], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out parsed)
+                && parsed > 0.1 && parsed <= 1.0)
+            {
+                scale = parsed;
+            }
+        }
 
         if (!File.Exists(sourcePath))
             throw new FileNotFoundException("Icon source not found: " + sourcePath);
@@ -27,7 +39,7 @@ static class GenAppIcon
         {
             foreach (var size in Sizes)
             {
-                using (var bmp = RenderCircularIcon(src, size))
+                using (var bmp = RenderSquareIcon(src, size, scale))
                 using (var ms = new MemoryStream())
                 {
                     bmp.Save(ms, ImageFormat.Png);
@@ -38,12 +50,16 @@ static class GenAppIcon
 
         WritePngIco(outPath, pngs);
         Console.WriteLine("Source: " + sourcePath);
+        Console.WriteLine("Scale:  " + scale.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
         Console.WriteLine("Wrote:  " + outPath + " (" + new FileInfo(outPath).Length + " bytes, " + pngs.Count + " sizes)");
     }
 
-    static Bitmap RenderCircularIcon(Image src, int size)
+    static Bitmap RenderSquareIcon(Image src, int size, double iconScale)
     {
         var crop = GetCenterSquare(src);
+        var drawSize = Math.Max(1, (int)Math.Round(size * iconScale));
+        var offset = (size - drawSize) / 2;
+        var cornerRadius = Math.Max(2, (int)Math.Round(size * 0.18));
         var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using (var g = Graphics.FromImage(bmp))
         {
@@ -53,52 +69,47 @@ static class GenAppIcon
             g.CompositingQuality = CompositingQuality.HighQuality;
             g.SmoothingMode = SmoothingMode.HighQuality;
 
-            using (var clip = new GraphicsPath())
+            using (var clip = CreateRoundedRectPath(0, 0, size, size, cornerRadius))
             {
-                clip.AddEllipse(0, 0, size, size);
                 g.SetClip(clip);
-                g.DrawImage(src, new Rectangle(0, 0, size, size), crop, GraphicsUnit.Pixel);
+                g.DrawImage(
+                    src,
+                    new Rectangle(offset, offset, drawSize, drawSize),
+                    crop,
+                    GraphicsUnit.Pixel);
+                g.ResetClip();
             }
         }
 
-        ApplyCircularAlpha(bmp);
         return bmp;
+    }
+
+    static GraphicsPath CreateRoundedRectPath(int x, int y, int width, int height, int radius)
+    {
+        var path = new GraphicsPath();
+        var d = Math.Max(2, radius * 2);
+        if (width < d || height < d)
+        {
+            path.AddRectangle(new Rectangle(x, y, width, height));
+            return path;
+        }
+
+        var arc = new Rectangle(x, y, d, d);
+        path.AddArc(arc, 180, 90);
+        arc.X = x + width - d;
+        path.AddArc(arc, 270, 90);
+        arc.Y = y + height - d;
+        path.AddArc(arc, 0, 90);
+        arc.X = x;
+        path.AddArc(arc, 90, 90);
+        path.CloseFigure();
+        return path;
     }
 
     static Rectangle GetCenterSquare(Image src)
     {
         int s = Math.Min(src.Width, src.Height);
         return new Rectangle((src.Width - s) / 2, (src.Height - s) / 2, s, s);
-    }
-
-    static void ApplyCircularAlpha(Bitmap bmp)
-    {
-        int w = bmp.Width;
-        int h = bmp.Height;
-        float cx = (w - 1) / 2f;
-        float cy = (h - 1) / 2f;
-        float radius = Math.Min(cx, cy);
-
-        for (int y = 0; y < h; y++)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                float dx = x - cx;
-                float dy = y - cy;
-                float dist = (float)Math.Sqrt(dx * dx + dy * dy);
-                if (dist > radius)
-                {
-                    bmp.SetPixel(x, y, Color.Transparent);
-                }
-                else if (dist > radius - 1.2f)
-                {
-                    var c = bmp.GetPixel(x, y);
-                    float t = (radius - dist) / 1.2f;
-                    if (t < 0) t = 0;
-                    bmp.SetPixel(x, y, Color.FromArgb((int)(c.A * t), c.R, c.G, c.B));
-                }
-            }
-        }
     }
 
     static void WritePngIco(string path, IList<PngFrame> frames)

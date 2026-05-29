@@ -31,8 +31,8 @@ namespace ProxyPulse.Services
     public sealed class ProxyHealthService
     {
         private const int DefaultDnsTimeoutMs = 2000;
-        private const int DefaultConnectTimeoutMs = 2000;
-        private const int DefaultConcurrency = 50;
+        private const int DefaultConnectTimeoutMs = 3500;
+        private const int DefaultConcurrency = 30;
 
         private readonly int _dnsTimeoutMs;
         private readonly int _connectTimeoutMs;
@@ -93,6 +93,16 @@ namespace ProxyPulse.Services
             return Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (!MtProxySecret.IsValid(proxy.Secret))
+                {
+                    return new ProxyCheckEventArgs
+                    {
+                        Entry = proxy,
+                        IsAvailable = false,
+                        PingMs = null
+                    };
+                }
+
                 int? pingMs;
                 var available = TryMeasureTcpPing(
                     proxy.Server,
